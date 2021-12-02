@@ -1,27 +1,5 @@
-/**
- *Submitted for verification at BscScan.com on 2021-11-25
-*/
-
-/**
-  
-    HELIUMX (HEX) TOKEN aims are to build a strong foundation in crypto markets also in the real world by implementing an 
-    innovative solution in the food & beverages industry in Africa and the profit will be shared with the Holders. 
-    Aiming to launch a mobile application to connect Farmers, customers and buyers from all over the world.
-
-    Telegram: https://t.me/HeliumxHEX
-    Website: http://Www.heliumx.io
-    Twitter: https://twitter.com/HeliumxHEX
-
-    ██╗░░██╗███████╗██╗░░░░░██╗██╗░░░██╗███╗░░░███╗██╗░░██╗
-    ██║░░██║██╔════╝██║░░░░░██║██║░░░██║████╗░████║╚██╗██╔╝
-    ███████║█████╗░░██║░░░░░██║██║░░░██║██╔████╔██║░╚███╔╝░
-    ██╔══██║██╔══╝░░██║░░░░░██║██║░░░██║██║╚██╔╝██║░██╔██╗░
-    ██║░░██║███████╗███████╗██║╚██████╔╝██║░╚═╝░██║██╔╝╚██╗
-    ╚═╝░░╚═╝╚══════╝╚══════╝╚═╝░╚═════╝░╚═╝░░░░░╚═╝╚═╝░░╚═╝
- 
-*/
-
 // SPDX-License-Identifier: NOLICENSE
+
 pragma solidity ^0.8.7;
 
 interface IERC20 {
@@ -125,7 +103,7 @@ library Address{
 }
 
 
-contract Heliumx is Context, IERC20, Ownable {
+contract DREAMIT is Context, IERC20, Ownable {
     using Address for address payable;
     
     mapping (address => uint256) private _rOwned;
@@ -160,47 +138,37 @@ contract Heliumx is Context, IERC20, Ownable {
     uint8 private constant _decimals = 9;
     uint256 private constant MAX = ~uint256(0);
 
-    uint256 private _tTotal = 1e14 * 10**_decimals;
+    uint256 private _tTotal = 1e6 * 10**_decimals;
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
 
-    uint256 public swapTokensAtAmount = 1_00_000_000_000 * 10**9;
-    uint256 public maxBuyLimit = 500_000_000_000 * 10**9;
-    uint256 public maxSellLimit = 500_000_000_000 * 10**9;
-    uint256 public maxWalletLimit = 2_000_000_000_000 * 10**9;
+    uint256 public swapTokensAtAmount = 1_000 * 10**9;
+    uint256 public maxBuyLimit = 5_000 * 10**9;
+    uint256 public maxSellLimit = 5_000 * 10**9;
+    uint256 public maxWalletLimit = 20_000 * 10**9;
     
     uint256 public genesis_block;
     
-    address public marketingWallet = 0x7502Ba7a91276c0e9207265fE00D6896e612f123;
-    address public devWallet = 0x5aA83df802123C50b2eb673AFd0027082A54D1bA;
-    address public buybackWallet = 0x6EaA0f417bFE233AF4ACe24784767B7bc6922d71;
-    address public lotteryWallet;
-    address public charityWallet = 0x36a81deEBDCAcE3b4e19bBeAdaFCae4Bbde09574;
+    address public marketingWallet = 0x736F1AEa7eD0E76B563EE779478d97BE0a2C6f9c;
+    address public donationWallet = 0x9648Bfe8169311aD687C97B0bbd7a5C2D36B8312;
 
-    string private constant _name = "HELIUMX";
-    string private constant _symbol = "HEX";
-
+    string private constant _name = "DreamIt";
+    string private constant _symbol = "DREAMIT";
 
     struct Taxes {
         uint256 rfi;
         uint256 marketing;
         uint256 liquidity; 
-        uint256 lottery;
-        uint256 dev;
-        uint256 buyback;
-        uint256 charity;
+        uint256 donation;
     }
 
-    Taxes public taxes = Taxes(0, 7, 1, 0, 1, 3, 0);
-    Taxes public sellTaxes = Taxes(9, 4, 1, 0, 1, 0, 1);
+    Taxes public taxes = Taxes(2, 5, 2, 3);
+    Taxes public sellTaxes = Taxes(3, 5, 2, 5);
 
     struct TotFeesPaidStruct{
         uint256 rfi;
         uint256 marketing;
         uint256 liquidity; 
-        uint256 lottery;
-        uint256 dev;
-        uint256 buyback;
-        uint256 charity;
+        uint256 donation;
     }
     
     TotFeesPaidStruct public totFeesPaid;
@@ -211,18 +179,12 @@ contract Heliumx is Context, IERC20, Ownable {
       uint256 rRfi;
       uint256 rMarketing;
       uint256 rLiquidity;
-      uint256 rLottery;
-      uint256 rDev;
-      uint256 rBuyback;
-      uint256 rCharity;
+      uint256 rDonation;
       uint256 tTransferAmount;
       uint256 tRfi;
       uint256 tMarketing;
       uint256 tLiquidity;
-      uint256 tLottery;
-      uint256 tDev;
-      uint256 tBuyback;
-      uint256 tCharity;
+      uint256 tDonation;
     }
 
     event FeesChanged();
@@ -245,23 +207,16 @@ contract Heliumx is Context, IERC20, Ownable {
         excludeFromReward(pair);
 
         _rOwned[owner()] = _rTotal;
-        lotteryWallet = address(this);
         _isExcludedFromFee[address(this)] = true;
         _isExcludedFromFee[owner()] = true;
         _isExcludedFromFee[marketingWallet] = true;
-        _isExcludedFromFee[devWallet] = true;
-        _isExcludedFromFee[lotteryWallet] = true;
-        _isExcludedFromFee[charityWallet] = true;
-        _isExcludedFromFee[buybackWallet] = true;
+        _isExcludedFromFee[donationWallet] = true;
         
         allowedTransfer[address(this)] = true;
         allowedTransfer[owner()] = true;
         allowedTransfer[pair] = true;
         allowedTransfer[marketingWallet] = true;
-        allowedTransfer[devWallet] = true;
-        allowedTransfer[lotteryWallet] = true;
-        allowedTransfer[charityWallet] = true;
-        allowedTransfer[buybackWallet] = true;
+        allowedTransfer[donationWallet] = true;
 
         emit Transfer(address(0), owner(), _tTotal);
     }
@@ -340,7 +295,6 @@ contract Heliumx is Context, IERC20, Ownable {
         }
     }
 
-
     function setTradingStatus(bool state) external onlyOwner{
         tradingEnabled = state;
         swapEnabled = state;
@@ -353,7 +307,6 @@ contract Heliumx is Context, IERC20, Ownable {
         return rAmount/currentRate;
     }
 
-    //@dev kept original RFI naming -> "reward" as in reflection
     function excludeFromReward(address account) public onlyOwner() {
         require(!_isExcluded[account], "Account is already excluded");
         if(_rOwned[account] > 0) {
@@ -376,7 +329,6 @@ contract Heliumx is Context, IERC20, Ownable {
         }
     }
 
-
     function excludeFromFee(address account) public onlyOwner {
         _isExcludedFromFee[account] = true;
     }
@@ -385,18 +337,17 @@ contract Heliumx is Context, IERC20, Ownable {
         _isExcludedFromFee[account] = false;
     }
 
-
     function isExcludedFromFee(address account) public view returns(bool) {
         return _isExcludedFromFee[account];
     }
 
-    function setTaxes(uint256 _rfi, uint256 _marketing, uint256 _liquidity, uint256 _lottery, uint256 _dev, uint256 _buyback, uint256 _charity) public onlyOwner {
-       taxes = Taxes(_rfi,_marketing,_liquidity,_lottery,_dev,_buyback,_charity);
+    function setTaxes(uint256 _rfi, uint256 _marketing, uint256 _liquidity, uint256 _donation) public onlyOwner {
+       taxes = Taxes(_rfi,_marketing,_liquidity,_donation);
         emit FeesChanged();
     }
     
-    function setSellTaxes(uint256 _rfi, uint256 _marketing, uint256 _liquidity, uint256 _lottery, uint256 _dev, uint256 _buyback, uint256 _charity) public onlyOwner {
-       sellTaxes = Taxes(_rfi,_marketing,_liquidity,_lottery,_dev,_buyback,_charity);
+    function setSellTaxes(uint256 _rfi, uint256 _marketing, uint256 _liquidity, uint256 _donation) public onlyOwner {
+       sellTaxes = Taxes(_rfi,_marketing,_liquidity,_donation);
         emit FeesChanged();
     }
 
@@ -425,50 +376,22 @@ contract Heliumx is Context, IERC20, Ownable {
         _rOwned[address(this)] +=rMarketing;
     }
     
-    function _takeDev(uint256 rDev, uint256 tDev) private {
-        totFeesPaid.dev +=tDev;
+    function _takeDonation(uint256 rDonation, uint256 tDonation) private {
+        totFeesPaid.donation +=tDonation;
 
         if(_isExcluded[address(this)])
         {
-            _tOwned[address(this)]+=tDev;
+            _tOwned[address(this)]+=tDonation;
         }
-        _rOwned[address(this)] +=rDev;
+        _rOwned[address(this)] +=rDonation;
     }
-    
-    function _takeCharity(uint256 rCharity, uint256 tCharity) private {
-        totFeesPaid.charity +=tCharity;
 
-        if(_isExcluded[address(this)])
-        {
-            _tOwned[address(this)]+=tCharity;
-        }
-        _rOwned[address(this)] +=rCharity;
-    }
-    
-    function _takeBuyback(uint256 rBuyback, uint256 tBuyback) private {
-        totFeesPaid.marketing +=tBuyback;
 
-        if(_isExcluded[address(this)])
-        {
-            _tOwned[address(this)]+=tBuyback;
-        }
-        _rOwned[address(this)] +=rBuyback;
-    }
-    
-    function _takeLottery(uint256 rLottery, uint256 tLottery) private {
-        totFeesPaid.lottery +=tLottery;
-
-        if(_isExcluded[lotteryWallet])
-        {
-            _tOwned[lotteryWallet]+=tLottery;
-        }
-        _rOwned[lotteryWallet] +=rLottery;
-    }
     
     function _getValues(uint256 tAmount, bool takeFee, bool isSell) private view returns (valuesFromGetValues memory to_return) {
         to_return = _getTValues(tAmount, takeFee, isSell);
         (to_return.rAmount, to_return.rTransferAmount, to_return.rRfi, to_return.rMarketing, to_return.rLiquidity) = _getRValues1(to_return, tAmount, takeFee, _getRate());
-        (to_return.rLottery, to_return.rDev, to_return.rBuyback, to_return.rCharity) = _getRValues2(to_return, takeFee, _getRate());
+        (to_return.rDonation) = _getRValues2(to_return, takeFee, _getRate());
         return to_return;
     }
 
@@ -485,11 +408,8 @@ contract Heliumx is Context, IERC20, Ownable {
         s.tRfi = tAmount*temp.rfi/100;
         s.tMarketing = tAmount*temp.marketing/100;
         s.tLiquidity = tAmount*temp.liquidity/100;
-        s.tLottery = tAmount*temp.lottery/100;
-        s.tDev = tAmount*temp.dev/100;
-        s.tBuyback = tAmount*temp.buyback/100;
-        s.tCharity = tAmount*temp.charity/100;
-        s.tTransferAmount = tAmount-s.tRfi-s.tMarketing-s.tLiquidity-s.tLottery-s.tDev-s.tBuyback-s.tCharity;
+        s.tDonation = tAmount*temp.donation/100;
+        s.tTransferAmount = tAmount-s.tRfi-s.tMarketing-s.tLiquidity-s.tDonation;
         return s;
     }
 
@@ -503,25 +423,19 @@ contract Heliumx is Context, IERC20, Ownable {
         rRfi = s.tRfi*currentRate;
         rMarketing = s.tMarketing*currentRate;
         rLiquidity = s.tLiquidity*currentRate;
-        uint256 rLottery = s.tLottery*currentRate;
-        uint256 rDev = s.tDev*currentRate;
-        uint256 rBuyback = s.tBuyback*currentRate;
-        uint256 rCharity = s.tCharity*currentRate;
-        rTransferAmount =  rAmount-rRfi-rMarketing-rLiquidity-rLottery-rDev-rBuyback-rCharity;
+        uint256 rDonation = s.tDonation*currentRate;
+        rTransferAmount =  rAmount-rRfi-rMarketing-rLiquidity-rDonation;
         return (rAmount, rTransferAmount, rRfi,rMarketing,rLiquidity);
     }
     
-    function _getRValues2(valuesFromGetValues memory s, bool takeFee, uint256 currentRate) private pure returns (uint256 rLottery,uint256 rDev,uint256 rBuyback,uint256 rCharity) {
+    function _getRValues2(valuesFromGetValues memory s, bool takeFee, uint256 currentRate) private pure returns (uint256 rDonation) {
 
         if(!takeFee) {
-          return(0,0,0,0);
+          return(0);
         }
 
-        rLottery = s.tLottery*currentRate;
-        rDev = s.tDev*currentRate;
-        rBuyback = s.tBuyback*currentRate;
-        rCharity = s.tCharity*currentRate;
-        return (rLottery,rDev,rBuyback,rCharity);
+        rDonation = s.tDonation*currentRate;
+        return (rDonation);
     }
 
     function _getRate() private view returns(uint256) {
@@ -616,22 +530,16 @@ contract Heliumx is Context, IERC20, Ownable {
         if(s.rRfi > 0 || s.tRfi > 0) _reflectRfi(s.rRfi, s.tRfi);
         if(s.rLiquidity > 0 || s.tLiquidity > 0) {
             _takeLiquidity(s.rLiquidity,s.tLiquidity);
-            emit Transfer(sender, address(this), s.tLiquidity + s.tMarketing + s.tDev+ s.tCharity + s.tBuyback);
+            emit Transfer(sender, address(this), s.tLiquidity + s.tMarketing + s.tDonation);
         }
         if(s.rMarketing > 0 || s.tMarketing > 0) _takeMarketing(s.rMarketing, s.tMarketing);
-        if(s.rBuyback > 0 || s.tBuyback > 0) _takeBuyback(s.rBuyback, s.tBuyback);
-        if(s.rDev > 0 || s.tDev > 0) _takeDev(s.rDev, s.tDev);
-        if(s.rCharity > 0 || s.tCharity > 0) _takeCharity(s.rCharity, s.tCharity);
-        if(s.rLottery > 0 || s.tLottery > 0){
-            _takeLottery(s.rLottery, s.tLottery);
-            emit Transfer(sender, lotteryWallet, s.tLottery);
-        }
+        if(s.rDonation > 0 || s.tDonation > 0) _takeDonation(s.rDonation, s.tDonation);
         emit Transfer(sender, recipient, s.tTransferAmount);
         
     }
 
     function swapAndLiquify(uint256 contractBalance, Taxes memory temp) private lockTheSwap{
-        uint256 denominator = (temp.liquidity + temp.marketing + temp.dev + temp.charity + temp.buyback) * 2;
+        uint256 denominator = (temp.liquidity + temp.marketing + temp.donation) * 2;
         uint256 tokensToAddLiquidityWith = contractBalance * temp.liquidity / denominator;
         uint256 toSwap = contractBalance - tokensToAddLiquidityWith;
 
@@ -652,21 +560,10 @@ contract Heliumx is Context, IERC20, Ownable {
         if(marketingAmt > 0){
             payable(marketingWallet).sendValue(marketingAmt);
         }
-        uint256 devAmt = unitBalance * 2 * temp.dev;
-        if(devAmt > 0){
-            payable(devWallet).sendValue(devAmt);
+        uint256 donationAmt = unitBalance * 2 * temp.donation;
+        if(donationAmt > 0){
+            payable(donationWallet).sendValue(donationAmt);
         }
-        
-        uint256 charityAmt = unitBalance * 2 * temp.charity;
-        if(marketingAmt > 0){
-            payable(charityWallet).sendValue(charityAmt);
-        }
-        
-        uint256 buybackAmt = unitBalance * 2 * temp.buyback;
-        if(buybackAmt > 0){
-            payable(buybackWallet).sendValue(buybackAmt);
-        }
-            
     }
 
     function addLiquidity(uint256 tokenAmount, uint256 bnbAmount) private {
@@ -719,21 +616,10 @@ contract Heliumx is Context, IERC20, Ownable {
         marketingWallet = newWallet;
     }
     
-    function updateDevWallet(address newWallet) external onlyOwner{
-        devWallet = newWallet;
+    function updateDonationWallet(address newWallet) external onlyOwner{
+        donationWallet = newWallet;
     }
-    
-    function updateCharityWallet(address newWallet) external onlyOwner{
-        charityWallet = newWallet;
-    }
-    
-    function updateLotteryWallet(address newWallet) external onlyOwner{
-        lotteryWallet = newWallet;
-    }
-    
-    function updateBuybackWallet(address newWallet) external onlyOwner{
-        buybackWallet = newWallet;
-    }
+
     
     function updateCooldown(bool state, uint256 time) external onlyOwner{
         coolDownTime = time * 1 seconds;
