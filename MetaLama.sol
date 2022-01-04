@@ -1,12 +1,9 @@
 /**
- *Submitted for verification at BscScan.com on 2022-01-02
+ *Submitted for verification at BscScan.com on 2021-12-27
 */
 
-/**
- *Submitted for verification at BscScan.com on 2021-12-22
-*/
+// SPDX-License-Identifier: MIT
 
-// SPDX-License-Identifier: Unlicensed
 pragma solidity ^0.8.0;
 
 /*
@@ -568,10 +565,10 @@ library Address {
 }
 
 
-// File contracts/UltramanCoin.sol
+// File contracts/MetaLama.sol
 pragma solidity ^0.8.0;
 
-contract UltramanCoin is Context, IERC20, Ownable {
+contract Metalama is Context, IERC20, Ownable {
     
     using Address for address payable;
     mapping(address => uint256) private _rOwned;
@@ -588,24 +585,23 @@ contract UltramanCoin is Context, IERC20, Ownable {
     uint8 private constant _decimals = 9;
     uint256 private constant MAX = ~uint256(0);
 
-    uint256 private _tTotal = 1_000_000_000 * 10**_decimals;
+    uint256 private _tTotal = 1000_000_000 * 10**_decimals;
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
 
-    uint256 public maxTxAmountBuy = _tTotal / 100; // 1% of supply
-    uint256 public maxTxAmountSell = _tTotal / 100; // 1% of supply
-    uint256 public maxWalletAmount = _tTotal / 50; // 2% of supply
+    uint256 public maxTxAmountBuy = _tTotal / 1000; // 1% of supply
+    uint256 public maxTxAmountSell = _tTotal / 1000; // 1% of supply
+    uint256 public maxWalletAmount = _tTotal / 500; // 2% of supply
 
     //antisnipers
     uint256 public liqAddedBlockNumber;
     uint256 public blocksToWait = 2;
 
     address payable public treasuryAddress;
-    address payable public devAddress;
-
+   
     mapping(address => bool) public isAutomatedMarketMakerPair;
 
-    string private constant _name = "Ultraman Coin";
-    string private constant _symbol = "ULTRA";
+    string private constant _name = "Metalama";
+    string private constant _symbol = "LAMA";
 
     bool private inSwapAndLiquify;
 
@@ -617,27 +613,24 @@ contract UltramanCoin is Context, IERC20, Ownable {
     struct feeRatesStruct {
         uint8 rfi;
         uint8 treasury;
-        uint8 dev;
         uint8 lp;
         uint8 toSwap;
     }
 
     feeRatesStruct public buyRates =
         feeRatesStruct({
-            rfi: 1, // reflection rate, in %
-            dev: 1, // dev team fee in %
+            rfi: 3, // reflection rate, in %
             treasury: 5, // treasury fee in %
-            lp: 3, // lp rate in %
-            toSwap: 9 // treasury + dev + lp
+            lp: 2, // lp rate in %
+            toSwap: 9 // treasury + autolp
         });
 
     feeRatesStruct public sellRates =
         feeRatesStruct({
-            rfi: 1, // reflection rate, in %
-            dev: 1, // dev team fee in %
+            rfi: 3, // reflection rate, in %
             treasury: 5, // treasury fee in %
-            lp: 3, // lp rate in %
-            toSwap: 9 // treasury + dev + lp
+            lp: 2, // lp rate in %
+            toSwap: 9 // treasury + autolp
         });
 
     feeRatesStruct private appliedRates = buyRates;
@@ -665,7 +658,7 @@ contract UltramanCoin is Context, IERC20, Ownable {
         uint256 tokensIntotoSwap
     );
     event LiquidityAdded(uint256 tokenAmount, uint256 ETHAmount);
-    event TreasuryAndDevFeesAdded(uint256 devFee, uint256 treasuryFee);
+    event TreasuryFeesAdded(uint256 treasuryFee);
     event SetAutomatedMarketMakerPair(address indexed pair, bool indexed value);
     event BlacklistedUser(address botAddress, bool indexed value);
     event MaxWalletAmountUpdated(uint256 amount);
@@ -687,15 +680,12 @@ contract UltramanCoin is Context, IERC20, Ownable {
         UniswapV2Router = _UniswapV2Router;
         _rOwned[owner()] = _rTotal;
         treasuryAddress = payable(msg.sender);
-        devAddress = payable(msg.sender);
         _isExcludedFromFee[owner()] = true;
         _isExcludedFromFee[treasuryAddress] = true;
-        _isExcludedFromFee[devAddress] = true;
         _isExcludedFromFee[address(this)] = true;
 
         _isExcludedFromMaxWallet[owner()] = true;
         _isExcludedFromMaxWallet[treasuryAddress] = true;
-        _isExcludedFromMaxWallet[devAddress] = true;
         _isExcludedFromMaxWallet[address(this)] = true;
 
         _isExcludedFromMaxWallet[uniswapPair] = true;
@@ -1100,13 +1090,10 @@ contract UltramanCoin is Context, IERC20, Ownable {
         // add liquidity
         addLiquidity(tokensToAddLiquidityWith, ETHToAddLiquidityWith);
 
-        // we give the remaining tax to dev & treasury wallets
+        // we give the remaining tax to treasury wallets
         uint256 remainingBalance = address(this).balance;
-        uint256 devFee = (remainingBalance * appliedRates.dev) /
-            (denominator - appliedRates.dev);
         uint256 treasuryFee = (remainingBalance * appliedRates.treasury) /
-            (denominator - appliedRates.treasury);
-        devAddress.sendValue(devFee);
+        (denominator - appliedRates.treasury);
         treasuryAddress.sendValue(treasuryFee);
     }
 
@@ -1137,7 +1124,7 @@ contract UltramanCoin is Context, IERC20, Ownable {
             tokenAmount,
             0, // slippage is unavoidable
             0, // slippage is unavoidable
-            devAddress,
+            owner(),
             block.timestamp
         );
         emit LiquidityAdded(tokenAmount, ETHAmount);
@@ -1162,35 +1149,31 @@ contract UltramanCoin is Context, IERC20, Ownable {
     function setBuyFees(
         uint8 _rfi,
         uint8 _treasury,
-        uint8 _dev,
         uint8 _lp
     ) external onlyOwner {
         buyRates.rfi = _rfi;
         buyRates.treasury = _treasury;
-        buyRates.dev = _dev;
         buyRates.lp = _lp;
-        buyRates.toSwap = _treasury + _dev + _lp;
+        buyRates.toSwap = _treasury + _lp;
     }
 
     function setSellFees(
         uint8 _rfi,
         uint8 _treasury,
-        uint8 _dev,
         uint8 _lp
     ) external onlyOwner {
         sellRates.rfi = _rfi;
         sellRates.treasury = _treasury;
-        sellRates.dev = _dev;
         sellRates.lp = _lp;
-        sellRates.toSwap = _treasury + _dev + _lp;
+        sellRates.toSwap = _treasury + _lp;
     }
 
     function setMaxTransactionAmount(
-        uint256 _maxTxAmountBuyPct,
-        uint256 _maxTxAmountSellPct
+        uint256 _maxTxAmountBuy,
+        uint256 _maxTxAmountSell
     ) external onlyOwner {
-        maxTxAmountBuy = _tTotal / _maxTxAmountBuyPct; // 100 = 1%, 50 = 2% etc.
-        maxTxAmountSell = _tTotal / _maxTxAmountSellPct; // 100 = 1%, 50 = 2% etc.
+        maxTxAmountBuy = _maxTxAmountBuy * 10**_decimals;
+        maxTxAmountSell = _maxTxAmountSell * 10**_decimals;
     }
 
     function setNumTokensSellToAddToLiq(uint256 amountTokens)
@@ -1207,10 +1190,6 @@ contract UltramanCoin is Context, IERC20, Ownable {
         treasuryAddress = _treasuryAddress;
     }
 
-    function setDevAddress(address payable _devAddress) external onlyOwner {
-        devAddress = _devAddress;
-    }
-
     function manualSwapAndAddToLiq() external onlyOwner {
         swapAndLiquify(balanceOf(address(this)));
     }
@@ -1225,8 +1204,8 @@ contract UltramanCoin is Context, IERC20, Ownable {
         emit BlacklistedUser(botAddress, false);
     }
 
-    function setMaxWalletAmount(uint256 _maxWalletAmountPct) external onlyOwner {
-        maxWalletAmount = _tTotal / _maxWalletAmountPct; // 100 = 1%, 50 = 2% etc.
+    function setMaxWalletAmount(uint256 _maxWalletAmount) external onlyOwner {
+        maxWalletAmount = _maxWalletAmount * 10**_decimals;
         emit MaxWalletAmountUpdated(maxWalletAmount);
     }
 

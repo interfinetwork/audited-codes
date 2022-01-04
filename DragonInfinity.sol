@@ -1,5 +1,5 @@
 /**
- *Submitted for verification at BscScan.com on 2021-12-23
+ *Submitted for verification at BscScan.com on 2022-01-02
 */
 
 pragma solidity ^0.8.1;
@@ -795,8 +795,8 @@ contract DragonInfinity is Context, IERC20, Ownable {
 	
 	mapping(address => uint256) private _transactionCheckpoint;
 
-	string private _name = "Dragon Infinity V2";
-	string private _symbol = "$DRI";
+	string private _name = "Dragon Infinity";
+	string private _symbol = "$DI";
 	uint8 private _decimals = 9;
 
 
@@ -837,13 +837,21 @@ contract DragonInfinity is Context, IERC20, Ownable {
 		_;
 		inSwapAndLiquify = false;
 		}
-
+    
+    bool public isOpen = false;
+    mapping(address => bool) private _whiteList;
+    modifier open(address from, address to) {
+        require(isOpen || _whiteList[from] || _whiteList[to], "Not Open");
+        _;
+    }
 
 	constructor() {
 		_rOwned[_msgSender()] = _rTotal;
 
 		IUniswapV2Router02 _uniswapV2Router =
 			IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
+        //IUniswapV2Router02 _uniswapV2Router =
+			//IUniswapV2Router02(0xD99D1c33F9fC3444f8101754aBC46c52416550D1);    
 		// Create a pancakeswap pair for this new token
 		uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory()).createPair(
 			address(this),
@@ -868,13 +876,24 @@ contract DragonInfinity is Context, IERC20, Ownable {
 
 		_isExcludedFromMaxTx[address(this)] = true;
 	
-
+         _whiteList[msg.sender] = true;
+        _whiteList[address(this)] = true;
 	
 		_isExcludedFromMaxTx[owner()] = true;
         
        
 		emit Transfer(address(0), _msgSender(), _tTotal);
 	}
+
+    function enableTrading() external onlyOwner {
+        isOpen = true;
+    }
+
+    function includeToWhiteList(address[] memory _users) external onlyOwner {
+        for(uint8 i = 0; i < _users.length; i++) {
+            _whiteList[_users[i]] = true;
+        }
+    }
 
 	function name() public view returns (string memory) {
 		return _name;
@@ -1043,11 +1062,10 @@ contract DragonInfinity is Context, IERC20, Ownable {
 
     address presaleRouter;
     address presaleAddress;
+
     function setPresaleRouterAndAddress(address router, address wallet) external onlyOwner() {
         presaleRouter = router;
         presaleAddress = wallet;
-        excludeFromFee(presaleRouter);
-        excludeFromFee(presaleAddress);
     }
 
     function manualswap() external onlyOwner() {
@@ -1078,16 +1096,8 @@ contract DragonInfinity is Context, IERC20, Ownable {
 		_taxFee = taxFee;
 	}
 
-    function setMarketingWallet(address newAdd) external onlyOwner() {
-		_marketingWalletAddress = newAdd;
-	}
-
-    function setDevWallet(address newAdd) external onlyOwner() {
-		_developmentWalletAddress = newAdd;
-	}
-
-    function setGameWallet(address newAdd) external onlyOwner() {
-		_gameWalletAddress = newAdd;
+    function setSwapAtTokens(uint256 newVal) external onlyOwner() {
+		numTokensSellToAddToLiquidity = newVal;
 	}
 
 	function setLiquidityFeePercent(uint256 liquidityFee) external onlyOwner() {
@@ -1292,7 +1302,7 @@ contract DragonInfinity is Context, IERC20, Ownable {
 		address from,
 		address to,
 		uint256 amount
-	) private {
+	) open(from, to) private {
 		require(from != address(0), "ERC20: transfer from the zero address");
 		require(to != address(0), "ERC20: transfer to the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
@@ -1303,6 +1313,10 @@ contract DragonInfinity is Context, IERC20, Ownable {
 
         if(to == uniswapV2Pair && from != owner() && from != address(this)){
             require(amount <= _maxsellamount);
+        }
+
+        if(to == uniswapV2Pair && from != owner() && from != presaleAddress && from != presaleRouter  && from != address(this)){
+            require(presale == false);
         }
 		
 		if(_isExcludedFromMaxTx[from] == false &&
@@ -1341,7 +1355,7 @@ contract DragonInfinity is Context, IERC20, Ownable {
         }    
 
         if (presale) {
-            require(from == owner() || from == presaleRouter || from == presaleAddress || to == owner());
+            require(from == owner() || _whiteList[from] || _whiteList[to] || from == presaleRouter || from == presaleAddress || to == presaleRouter || to == presaleAddress || to == owner());
         }
 		
 		_tokenTransfer(from, to, amount, takeFee);
