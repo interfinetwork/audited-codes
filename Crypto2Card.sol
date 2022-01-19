@@ -1,27 +1,17 @@
-/**
- *Submitted for verification at BscScan.com on 2022-01-17
-*/
-
-/**
- * 
- * LOF - The cryptocurrency that empowers and supports talented content creators.
- * Automatic BNB Rewards
- * Receive rewards in ANY BSC token via our dApp
- * 
- * LOF v2
- * 
- * Web: https://lofcrypto.com
- * Telegram: https://t.me/Lonelyfanschat
- * Twitter: https://twitter.com/lofcrypto
- * Reddit: https://www.reddit.com/r/LOFcrypto/
- * Discord: https://discord.gg/JrYQwGF9
- * 
- * 
-*/
 // SPDX-License-Identifier: MIT
 
-pragma solidity =0.8.9;
+pragma solidity ^0.8.6;
 
+/*
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
 abstract contract Context {
     function _msgSender() internal view virtual returns (address) {
         return msg.sender;
@@ -742,13 +732,13 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
         uint256 amount
     ) internal virtual {}
 }
-/// easter egg from nomessages9 on tg to find copycats
+
 /// @title Dividend-Paying Token
 /// @author Roger Wu (https://github.com/roger-wu)
 /// @dev A mintable ERC20 token that allows anyone to pay and distribute ether
 ///  to token holders as dividends and allows token holders to withdraw their dividends.
 ///  Reference: the source code of PoWH3D: https://etherscan.io/address/0xB3775fB83F7D12A36E0475aBdD1FCA35c091efBe#code
-contract DividendPayingToken is DividendPayingTokenInterface, DividendPayingTokenOptionalInterface, Ownable {
+contract DividendPayingToken is ERC20, DividendPayingTokenInterface, DividendPayingTokenOptionalInterface, Ownable {
   using SafeMath for uint256;
   using SafeMathUint for uint256;
   using SafeMathInt for int256;
@@ -759,30 +749,39 @@ contract DividendPayingToken is DividendPayingTokenInterface, DividendPayingToke
   uint256 constant internal magnitude = 2**128;
   
   uint256 internal magnifiedDividendPerShare;
-  
-  mapping (address => uint256) public holderBalance;
-  uint256 public totalBalance;
 
+  // About dividendCorrection:
+  // If the token balance of a `_user` is never changed, the dividend of `_user` can be computed with:
+  //   `dividendOf(_user) = dividendPerShare * balanceOf(_user)`.
+  // When `balanceOf(_user)` is changed (via minting/burning/transferring tokens),
+  //   `dividendOf(_user)` should not be changed,
+  //   but the computed value of `dividendPerShare * balanceOf(_user)` is changed.
+  // To keep the `dividendOf(_user)` unchanged, we add a correction term:
+  //   `dividendOf(_user) = dividendPerShare * balanceOf(_user) + dividendCorrectionOf(_user)`,
+  //   where `dividendCorrectionOf(_user)` is updated whenever `balanceOf(_user)` is changed:
+  //   `dividendCorrectionOf(_user) = dividendPerShare * (old balanceOf(_user)) - (new balanceOf(_user))`.
+  // So now `dividendOf(_user)` returns the same value before and after `balanceOf(_user)` is changed.
   mapping(address => int256) internal magnifiedDividendCorrections;
   mapping(address => uint256) internal withdrawnDividends;
+  mapping(address => uint256) internal rawBNBWithdrawnDividends;
   mapping(address => address) public userCurrentRewardToken;
   mapping(address => bool) public userHasCustomRewardToken;
   mapping(address => address) public userCurrentRewardAMM;
   mapping(address => bool) public userHasCustomRewardAMM;
   mapping(address => uint256) public rewardTokenSelectionCount; // keep track of how many people have each reward token selected (for fun mostly)
   mapping(address => bool) public ammIsWhiteListed; // only allow whitelisted AMMs
-  mapping(address => bool) public blackListRewardTokens;
+  mapping(address => bool) public ignoreRewardTokens;
  
   IUniswapV2Router02 public uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
   
   function updateDividendUniswapV2Router(address newAddress) external onlyOwner {
-        require(newAddress != address(uniswapV2Router), "LOF: The router already has that address");
+        require(newAddress != address(uniswapV2Router), "C2C: The router already has that address");
         uniswapV2Router = IUniswapV2Router02(newAddress);
     }
   
   uint256 public totalDividendsDistributed; // dividends distributed per reward token
 
-  constructor() {
+  constructor(string memory _name, string memory _symbol, uint8 _decimals) ERC20(_name, _symbol, _decimals) {
     // add whitelisted AMMs here -- more will get added postlaunch
     ammIsWhiteListed[address(0x10ED43C718714eb63d5aA57B78B54704E256024E)] = true; // PCS V2 router
     ammIsWhiteListed[address(0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F)] = true; // PCS V1 router
@@ -829,26 +828,28 @@ contract DividendPayingToken is DividendPayingTokenInterface, DividendPayingToke
         
         // if the swap failed, send them their BNB instead
         if(!swapSuccess){
+            rawBNBWithdrawnDividends[recipient] = rawBNBWithdrawnDividends[recipient].add(ethAmount);
             (bool success,) = recipient.call{value: ethAmount, gas: 3000}("");
     
             if(!success) {
                 withdrawnDividends[recipient] = withdrawnDividends[recipient].sub(ethAmount);
+                rawBNBWithdrawnDividends[recipient] = rawBNBWithdrawnDividends[recipient].sub(ethAmount);
                 return 0;
             }
         }
         return ethAmount;
     }
   
-  function setBlacklistToken(address tokenAddress, bool isBlacklisted) external onlyOwner {
-      blackListRewardTokens[tokenAddress] = isBlacklisted;
+  function setIgnoreToken(address tokenAddress, bool isIgnored) external onlyOwner {
+      ignoreRewardTokens[tokenAddress] = isIgnored;
   }
   
-  function isBlacklistedToken(address tokenAddress) public view returns (bool){
-      return blackListRewardTokens[tokenAddress];
+  function isIgnoredToken(address tokenAddress) public view returns (bool){
+      return ignoreRewardTokens[tokenAddress];
   }
   
-  function getBNBDividends(address holder) external view returns (uint256){
-      return withdrawnDividends[holder];
+  function getRawBNBDividends(address holder) external view returns (uint256){
+      return rawBNBWithdrawnDividends[holder];
   }
     
   function setWhiteListAMM(address ammAddress, bool whitelisted) external onlyOwner {
@@ -889,13 +890,25 @@ contract DividendPayingToken is DividendPayingTokenInterface, DividendPayingToke
   }
 
   /// @notice Distributes ether to token holders as dividends.
- 
+  /// @dev It reverts if the total supply of tokens is 0.
+  /// It emits the `DividendsDistributed` event if the amount of received ether is greater than 0.
+  /// About undistributed ether:
+  ///   In each distribution, there is a small amount of ether not distributed,
+  ///     the magnified amount of which is
+  ///     `(msg.value * magnitude) % totalSupply()`.
+  ///   With a well-chosen `magnitude`, the amount of undistributed ether
+  ///     (de-magnified) in a distribution can be less than 1 wei.
+  ///   We can actually keep track of the undistributed ether in a distribution
+  ///     and try to distribute it in the next distribution,
+  ///     but keeping track of such data on-chain costs much more than
+  ///     the saved ether, so we don't do that.
+  
   function distributeDividends() public override payable {
-    require(totalBalance > 0);
+    require(totalSupply() > 0);
 
     if (msg.value > 0) {
       magnifiedDividendPerShare = magnifiedDividendPerShare.add(
-        (msg.value).mul(magnitude) / totalBalance
+        (msg.value).mul(magnitude) / totalSupply()
       );
       emit DividendsDistributed(msg.sender, msg.value);
 
@@ -904,25 +917,27 @@ contract DividendPayingToken is DividendPayingTokenInterface, DividendPayingToke
   }
   
   /// @notice Withdraws the ether distributed to the sender.
-
-  function withdrawDividend() external virtual override {
+  /// @dev It emits a `DividendWithdrawn` event if the amount of withdrawn ether is greater than 0.
+  function withdrawDividend() public virtual override {
     _withdrawDividendOfUser(payable(msg.sender));
   }
 
   /// @notice Withdraws the ether distributed to the sender.
-  
+  /// @dev It emits a `DividendWithdrawn` event if the amount of withdrawn ether is greater than 0.
   function _withdrawDividendOfUser(address payable user) internal returns (uint256) {
     uint256 _withdrawableDividend = withdrawableDividendOf(user);
     if (_withdrawableDividend > 0) {
-         // if no custom reward token or reward token is blacklisted, send BNB.
-        if(!userHasCustomRewardToken[user] || isBlacklistedToken(userCurrentRewardToken[user])){
+         // if no custom reward token or reward token is ignored, send BNB.
+        if(!userHasCustomRewardToken[user] && !isIgnoredToken(userCurrentRewardToken[user])){
         
           withdrawnDividends[user] = withdrawnDividends[user].add(_withdrawableDividend);
+          rawBNBWithdrawnDividends[user] = rawBNBWithdrawnDividends[user].add(_withdrawableDividend);
           emit DividendWithdrawn(user, _withdrawableDividend);
           (bool success,) = user.call{value: _withdrawableDividend, gas: 3000}("");
     
           if(!success) {
             withdrawnDividends[user] = withdrawnDividends[user].sub(_withdrawableDividend);
+            rawBNBWithdrawnDividends[user] = rawBNBWithdrawnDividends[user].sub(_withdrawableDividend);
             return 0;
           }
           return _withdrawableDividend;
@@ -942,7 +957,7 @@ contract DividendPayingToken is DividendPayingTokenInterface, DividendPayingToke
   /// @notice View the amount of dividend in wei that an address can withdraw.
   /// @param _owner The address of a token holder.
   /// @return The amount of dividend in wei that `_owner` can withdraw.
-  function dividendOf(address _owner) external view override returns(uint256) {
+  function dividendOf(address _owner) public view override returns(uint256) {
     return withdrawableDividendOf(_owner);
   }
 
@@ -956,7 +971,7 @@ contract DividendPayingToken is DividendPayingTokenInterface, DividendPayingToke
   /// @notice View the amount of dividend in wei that an address has withdrawn.
   /// @param _owner The address of a token holder.
   /// @return The amount of dividend in wei that `_owner` has withdrawn.
-  function withdrawnDividendOf(address _owner) external view override returns(uint256) {
+  function withdrawnDividendOf(address _owner) public view override returns(uint256) {
     return withdrawnDividends[_owner];
   }
 
@@ -967,39 +982,54 @@ contract DividendPayingToken is DividendPayingTokenInterface, DividendPayingToke
   /// @param _owner The address of a token holder.
   /// @return The amount of dividend in wei that `_owner` has earned in total.
   function accumulativeDividendOf(address _owner) public view override returns(uint256) {
-    return magnifiedDividendPerShare.mul(holderBalance[_owner]).toInt256Safe()
+    return magnifiedDividendPerShare.mul(balanceOf(_owner)).toInt256Safe()
       .add(magnifiedDividendCorrections[_owner]).toUint256Safe() / magnitude;
   }
 
-  /// @dev Internal function that increases tokens to an account.
+  /// @dev Internal function that transfer tokens from one address to another.
+  /// Update magnifiedDividendCorrections to keep dividends unchanged.
+  /// @param from The address to transfer from.
+  /// @param to The address to transfer to.
+  /// @param value The amount to be transferred.
+  function _transfer(address from, address to, uint256 value) internal virtual override {
+    require(false);
+
+    int256 _magCorrection = magnifiedDividendPerShare.mul(value).toInt256Safe();
+    magnifiedDividendCorrections[from] = magnifiedDividendCorrections[from].add(_magCorrection);
+    magnifiedDividendCorrections[to] = magnifiedDividendCorrections[to].sub(_magCorrection);
+  }
+
+  /// @dev Internal function that mints tokens to an account.
   /// Update magnifiedDividendCorrections to keep dividends unchanged.
   /// @param account The account that will receive the created tokens.
   /// @param value The amount that will be created.
-  function _increase(address account, uint256 value) internal {
+  function _mint(address account, uint256 value) internal override {
+    super._mint(account, value);
+
     magnifiedDividendCorrections[account] = magnifiedDividendCorrections[account]
       .sub( (magnifiedDividendPerShare.mul(value)).toInt256Safe() );
   }
 
-  /// @dev Internal function that reduces an amount of the token of a given account.
+  /// @dev Internal function that burns an amount of the token of a given account.
   /// Update magnifiedDividendCorrections to keep dividends unchanged.
   /// @param account The account whose tokens will be burnt.
   /// @param value The amount that will be burnt.
-  function _reduce(address account, uint256 value) internal {
+  function _burn(address account, uint256 value) internal override {
+    super._burn(account, value);
+
     magnifiedDividendCorrections[account] = magnifiedDividendCorrections[account]
       .add( (magnifiedDividendPerShare.mul(value)).toInt256Safe() );
   }
 
   function _setBalance(address account, uint256 newBalance) internal {
-    uint256 currentBalance = holderBalance[account];
-    holderBalance[account] = newBalance;
+    uint256 currentBalance = balanceOf(account);
+
     if(newBalance > currentBalance) {
-      uint256 increaseAmount = newBalance.sub(currentBalance);
-      _increase(account, increaseAmount);
-      totalBalance += increaseAmount;
+      uint256 mintAmount = newBalance.sub(currentBalance);
+      _mint(account, mintAmount);
     } else if(newBalance < currentBalance) {
-      uint256 reduceAmount = currentBalance.sub(newBalance);
-      _reduce(account, reduceAmount);
-      totalBalance -= reduceAmount;
+      uint256 burnAmount = currentBalance.sub(newBalance);
+      _burn(account, burnAmount);
     }
   }
 }
@@ -1140,6 +1170,7 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
     ) external;
 }
 
+
 interface IUniswapV2Factory {
     event PairCreated(address indexed token0, address indexed token1, address pair, uint);
 
@@ -1152,19 +1183,10 @@ interface IUniswapV2Factory {
 
     function createPair(address tokenA, address tokenB) external returns (address pair);
 
-    function createEmpirePair(
-        address tokenA,
-        address tokenB,
-        PairType pairType,
-        uint256 unlockTime
-    ) external returns (address pair);
-
     function setFeeTo(address) external;
     function setFeeToSetter(address) external;
 }
 
-
-enum PairType {Common, LiquidityLocked, SweepableToken0, SweepableToken1}
 
 interface IUniswapV2Pair {
     event Approval(address indexed owner, address indexed spender, uint value);
@@ -1217,91 +1239,64 @@ interface IUniswapV2Pair {
     function initialize(address, address) external;
 }
 
-contract LOF is ERC20, Ownable {
+contract Crypto2Card is ERC20, Ownable {
     using SafeMath for uint256;
 
     IUniswapV2Router02 public uniswapV2Router;
-    address public uniswapV2Pair;
-    
-    address public immutable deadAddress = 0x000000000000000000000000000000000000dEaD;
+    address public immutable uniswapV2Pair;
     
     bool private swapping;
 
-    DividendTracker public dividendTracker;
+    C2CDividendTracker public dividendTracker;
     
     mapping(address => uint256) public holderBNBUsedForBuyBacks;
+    mapping(address => bool) public _isAllowedDuringDisabled;
+    mapping(address => bool) public _isIgnoredAddress;
     
-    mapping(address => bool) public _isBlacklisted;
-
-    mapping(address => uint256) public _holderTransferRestrictionEnds;
-    
-    mapping(address => bool) public isContentCreator;
 
     address public liquidityWallet;
     address public operationsWallet;
-    address public teamWallet;
-    address public buybackWallet;
-    
-    uint256 public swapTokensAtAmount;
+    address private buyBackWallet;
 
+    uint256 public maxSellTransactionAmount = 1 * 10 ** 9 * (10**9);
+    uint256 public swapTokensAtAmount = 100 * 10 ** 6 * (10**9);
+    
+    // Anti-bot and anti-whale mappings and variables for launch
+    mapping(address => uint256) private _holderLastTransferTimestamp; // to hold last Transfers temporarily during launch
+    bool public transferDelayEnabled = true;
+    
+    
+    // to track last sell to reduce sell penalty over time by 10% per week the holder sells *no* tokens.
     mapping (address => uint256) public _holderLastSellDate;
-    mapping (address => uint256) public _holderNextSellAmountLimit;
-
-    // fees
-    uint256 public rewardsFee;
-    uint256 public liquidityFee;
-    uint256 public totalFees;
-    uint256 public operationsFee;
-    uint256 public buybackFee;
-    uint256 public teamFee;
-
-    uint256 public rewardsFeeSell;
-    uint256 public liquidityFeeSell;
-    uint256 public operationsFeeSell;
-    uint256 public teamFeeSell;
-    uint256 public buybackFeeSell;
-
-    uint256 public totalSellFees;
     
-    uint256 public contentCreatorSellFee;
+    // fees
+    uint256 public BNBRewardsFee = 8;
+    uint256 public liquidityFee = 4; // This fee must be a TOTAL of LP, Operations Fee AND Buyback fee (Note, Buyback has been disabled)
+    uint256 public totalFees = BNBRewardsFee.add(liquidityFee);
+    // this is a subset of the liquidity fee, not in addition to. operations fee + buyback fee cannot be higher than liquidity fee.  Will be reasonably reduced post launch.
+    uint256 public operationsFee = 2;
+    uint256 public buyBackFee = 0;
+	uint256 public _maxSellPercent = 95; // Set the maximum percent allowed on sale per a single transaction
+    
+    // Disable trading initially
+    bool isTradingEnabled = false;
+    
+    // Swap and liquify active status 
+    bool isSwapAndLiquifyEnabled = false;
 
-    // max wallet
-    uint256 public maxWalletSize;
-
-    // max transaction
-    uint256 public maxTransactionAmount;
-
-    // transfer lock time
-    uint256 public transferLockTime = 172800;
-
-    // transfer tax wallet to wallet
-    uint256 public w2wTransferTax = 0;
-
-    // daily multiple sell tax multiplier (multiplied by 10) - Solidity can't handle decimals
-    uint256 public penaltySellTaxFactor = 15;
-
-    // daily sell limit (33%)
-    uint256 public penaltyLimitTaxPercent = 33;
-
-    // trading status
-    bool public tradingActive;
-    bool public swapEnabled;
-    bool public isBuyTaxDisabled = false;
-    bool public autoBuyBackEnabled = false;
-
-    uint256 public sellFeeIncreaseFactor = 100; 
+    // sells have fees of 4.8 and 12 (16.8 total) (4 * 1.2 and 10 * 1.2)
+    uint256 public immutable sellFeeIncreaseFactor = 200;
+    
+    uint256 public immutable rewardFeeSellFactor = 120;
 
     // use by default 300,000 gas to process auto-claiming dividends
     uint256 public gasForProcessing = 300000;
 
     // exlcude from fees and max transaction amount
     mapping (address => bool) private _isExcludedFromFees;
-    
-    // store whitelisted addresses when trading is inactive 
-    mapping (address => bool) public _canTradeWhenInactive;
 
-    mapping (address => bool) public _isLpPool;
-
+    // store addresses that a automatic market maker pairs. Any transfer *to* these addresses
+    // could be subject to a maximum transfer amount
     mapping (address => bool) public automatedMarketMakerPairs;
 
     event UpdateDividendTracker(address indexed newAddress, address indexed oldAddress);
@@ -1315,14 +1310,12 @@ contract LOF is ERC20, Ownable {
     event BuyBackWithNoFees(address indexed holder, uint256 indexed bnbSpent);
 
     event LiquidityWalletUpdated(address indexed newLiquidityWallet, address indexed oldLiquidityWallet);
-    event OperationsWalletUpdated(address indexed newOperationsWallet, address indexed oldOperationsWallet);
-    event BuyBackWalletUpdated(address indexed newBuybackWallet, address indexed oldBuybackWallet);
-    event TeamWalletUpdated(address indexed newTeamWallet, address indexed oldTeamWallet);
-
+    event OperationsWalletUpdated(address indexed newLiquidityWallet, address indexed oldLiquidityWallet);
+    event BuyBackWalletUpdated(address indexed newLiquidityWallet, address indexed oldLiquidityWallet);
     
     event FeesUpdated(uint256 indexed newBNBRewardsFee, uint256 indexed newLiquidityFee, uint256 newOperationsFee, uint256 newBuyBackFee);
 
-    event RecoveredExcess(uint256 amount);
+    event GasForProcessingUpdated(uint256 indexed newValue, uint256 indexed oldValue);
     
     event SwapAndLiquify(
         uint256 tokensSwapped,
@@ -1331,9 +1324,10 @@ contract LOF is ERC20, Ownable {
     );
 
     event SendDividends(
+        uint256 tokensSwapped,
         uint256 amount
     );
-    
+
     event ProcessedDividendTracker(
         uint256 iterations,
         uint256 claims,
@@ -1342,58 +1336,19 @@ contract LOF is ERC20, Ownable {
         uint256 gas,
         address indexed processor
     );
-    
-    event SwapETHForTokens(
-        uint256 amountIn,
-        address[] path
-    );
 
-    modifier onlyPair() {
-        require(
-            msg.sender == uniswapV2Pair,
-            "LOF::onlyPair: Insufficient Privileges"
-        );
-        _;
-    }
+    constructor() ERC20("Crypto2Card", "C2C", 9) {
 
-    constructor() ERC20("LOFCrypto", "LOF", 9) {
-        
-        uint256 _rewardsFee = 2;
-        uint256 _operationsFee = 2;
-        uint256 _liquidityFee = 2;
-        uint256 _buybackFee = 0;
-        uint256 _teamFee = 0;
-
-        uint256 _rewardsFeeSell = 4;
-        uint256 _operationsFeeSell = 3;
-        uint256 _liquidityFeeSell = 3;
-        uint256 _buybackFeeSell = 5;
-        uint256 _teamFeeSell = 0;
-        
-        rewardsFee = _rewardsFee;
-        operationsFee = _operationsFee;
-        liquidityFee = _liquidityFee;
-        buybackFee = _buybackFee;
-        teamFee = _teamFee;
-        totalFees = rewardsFee + operationsFee + liquidityFee + buybackFee + teamFee;
-
-        rewardsFeeSell = _rewardsFeeSell;
-        operationsFeeSell = _operationsFeeSell;
-        liquidityFeeSell = _liquidityFeeSell;
-        buybackFeeSell = _buybackFeeSell;
-        teamFeeSell = _teamFeeSell;
-
-        totalSellFees = rewardsFeeSell + operationsFeeSell + liquidityFeeSell + buybackFeeSell + teamFeeSell;
-        
-        contentCreatorSellFee = 5;
-
-        dividendTracker = new DividendTracker();
+        dividendTracker = new C2CDividendTracker();
 
         liquidityWallet = owner();
         operationsWallet = owner();
-        teamWallet = operationsWallet;
+        buyBackWallet = owner();
         
-        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
+       IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E); // Mainnet 
+        // IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0xD99D1c33F9fC3444f8101754aBC46c52416550D1); // Testnet 
+
+        
          // Create a uniswap pair for this new token
         address _uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
             .createPair(address(this), _uniswapV2Router.WETH());
@@ -1401,31 +1356,31 @@ contract LOF is ERC20, Ownable {
         uniswapV2Router = _uniswapV2Router;
         uniswapV2Pair = _uniswapV2Pair;
 
-        _isLpPool[uniswapV2Pair] = true;
-        
-        uint256 totalSupply = 10 * 10 ** 8 * 10 ** 9; // Total supply of 1,000,000,000 with 9 decimal places
-        swapTokensAtAmount = totalSupply * 5 / 100000; // 0.005% swap tokens amount
-        
         _setAutomatedMarketMakerPair(_uniswapV2Pair, true);
 
         // exclude from receiving dividends
         dividendTracker.excludeFromDividends(address(dividendTracker));
         dividendTracker.excludeFromDividends(address(this));
-        dividendTracker.excludeFromDividends(owner());
+        dividendTracker.excludeFromDividends(liquidityWallet);
+        dividendTracker.excludeFromDividends(address(0x000000000000000000000000000000000000dEaD)); // don't want dead address to take BNB!!!
         dividendTracker.excludeFromDividends(address(_uniswapV2Router));
-        dividendTracker.excludeFromDividends(address(0xdead));
-        
-        // exclude from paying fees or having max transaction amount
-        excludeFromFees(owner(), true);
-        excludeFromFees(address(this), true);
-        excludeFromFees(address(0xdead), true);
-        
-        // allow addresses for trading before activation
-        _canTradeWhenInactive[owner()];
-        _canTradeWhenInactive[0x4F0387455E1773d7A5892f40aF7196Cd875fb9d6]; // Migration contract 
 
-        // _mint can ONLY be called ONCE during the contract construction.
-        _mint(owner(), totalSupply);
+        // exclude from paying fees or having max transaction amount
+        excludeFromFees(liquidityWallet, true);
+        excludeFromFees(address(this), true);
+        excludeFromFees(address(dividendTracker), true);
+        excludeFromFees(address(operationsWallet), true);
+        excludeFromFees(address(buyBackWallet), true);
+        
+        _isAllowedDuringDisabled[address(this)] = true;
+        _isAllowedDuringDisabled[owner()] = true;
+        _isAllowedDuringDisabled[liquidityWallet] = true;
+        
+        /*
+            _mint is an internal function in ERC20.sol that is only called here,
+            and CANNOT be called ever again
+        */
+        _mint(owner(), 1 * 10**12 * (10**9));
     }
 
     receive() external payable {
@@ -1433,87 +1388,46 @@ contract LOF is ERC20, Ownable {
     }
     
     // @dev Owner functions start -------------------------------------
-
-    // add/remove lpPool 
-    function editIsLpPool(address _lpPool, bool value) external onlyOwner {
-        _isLpPool[_lpPool] = value;
-    }
-
-    // update daily multiple sell tax factor
-    function updatePenaltySellTaxFactor(uint256 _penaltySellTaxFactor) external onlyOwner {
-        require(_penaltySellTaxFactor <= 17, "Must be lower than, or equal to, 1.7x");
-        penaltySellTaxFactor = _penaltySellTaxFactor;
-    }
-
-    // update max 33% sell tax factor
-    function updatePenaltyLimitTaxPercent(uint256 _penaltyLimitTaxPercent) external onlyOwner {
-        require(_penaltyLimitTaxPercent <= 50, "Must be lower than, or equal to, 50%");
-        penaltyLimitTaxPercent = _penaltyLimitTaxPercent;
-    }
-
-    // update wallet to wallet tax
-    function updateW2wTransferTax(uint256 _w2wTransferTax) external onlyOwner {
-        require(_w2wTransferTax <= 15, "Must be lower than, or equal to, 15%");
-        w2wTransferTax = _w2wTransferTax;
-    }
-
-    // update transfer lock time limit
-    function updateTransferLockTime(uint256 _transferLockTime) external onlyOwner {
-        require(_transferLockTime <= 259200, "Must be less than 3 days, in seconds");
-        transferLockTime = _transferLockTime;
-    }
     
     // enable / disable custom AMMs
     function setWhiteListAMM(address ammAddress, bool isWhiteListed) external onlyOwner {
-      require(isContract(ammAddress), "LOF: setWhiteListAMM:: AMM is a wallet, not a contract");
+      require(isContract(ammAddress), "C2C: setWhiteListAMM:: AMM is a wallet, not a contract");
       dividendTracker.setWhiteListAMM(ammAddress, isWhiteListed);
-    }
-    
-    // add / remove from blacklist - this will prevent wallets from buying/selling on the contract.
-    function updateBlacklistStatus(address wallet, bool value) external onlyOwner {
-        _isBlacklisted[wallet] = value;
-    }
-
-    function updateAutoBuyBackStatus(bool value) external onlyOwner {
-        autoBuyBackEnabled = value;
-    }
-    
-    // once enabled, can never be turned off
-    function enableTrading() external onlyOwner {
-        tradingActive = true;
-        swapEnabled = true;
-    }
-    
-    // only use to disable contract sales if absolutely necessary (emergency use only)
-    function updateSwapEnabled(bool enabled) external onlyOwner(){
-        swapEnabled = enabled;
     }
     
     // change the minimum amount of tokens to sell from fees
     function updateSwapTokensAtAmount(uint256 newAmount) external onlyOwner returns (bool){
         require(newAmount < totalSupply(), "Swap amount cannot be higher than total supply.");
-        require(newAmount <= totalSupply() * 5 / 1000, "Swap amount cannot be higher than 0.5% total supply.");
         swapTokensAtAmount = newAmount;
         return true;
     }
     
+    // remove transfer delay after launch
+    function disableTransferDelay() external onlyOwner {
+        transferDelayEnabled = false;
+    }
+    
     // migration feature (DO NOT CHANGE WITHOUT CONSULTATION)
-    function updateDividendTracker(address newAddress) external onlyOwner {
-        require(newAddress != address(dividendTracker), "LOF: The dividend tracker already has that address");
+    function updateDividendTracker(address newAddress) public onlyOwner {
+        require(newAddress != address(dividendTracker), "C2C: The dividend tracker already has that address");
 
-        DividendTracker newDividendTracker = DividendTracker(payable(newAddress));
+        C2CDividendTracker newDividendTracker = C2CDividendTracker(payable(newAddress));
 
-        require(newDividendTracker.owner() == address(this), "LOF: The new dividend tracker must be owned by the LOF token contract");
+        require(newDividendTracker.owner() == address(this), "C2C: The new dividend tracker must be owned by the C2C token contract");
 
         newDividendTracker.excludeFromDividends(address(newDividendTracker));
         newDividendTracker.excludeFromDividends(address(this));
         newDividendTracker.excludeFromDividends(owner());
         newDividendTracker.excludeFromDividends(address(uniswapV2Router));
-        newDividendTracker.excludeFromDividends(address(0xdead));
 
         emit UpdateDividendTracker(newAddress, address(dividendTracker));
 
         dividendTracker = newDividendTracker;
+    }
+    
+    // updates the maximum amount of tokens that can be bought or sold by holders
+    function updateMaxTxn(uint256 maxTxnAmount) external onlyOwner {
+        maxSellTransactionAmount = maxTxnAmount;
     }
     
     // updates the minimum amount of tokens people must hold in order to get dividends
@@ -1523,7 +1437,7 @@ contract LOF is ERC20, Ownable {
 
     // updates the default router for selling tokens
     function updateUniswapV2Router(address newAddress) external onlyOwner {
-        require(newAddress != address(uniswapV2Router), "LOF: The router already has that address");
+        require(newAddress != address(uniswapV2Router), "C2C: The router already has that address");
         emit UpdateUniswapV2Router(newAddress, address(uniswapV2Router));
         uniswapV2Router = IUniswapV2Router02(newAddress);
     }
@@ -1532,16 +1446,33 @@ contract LOF is ERC20, Ownable {
     function updateDividendUniswapV2Router(address newAddress) external onlyOwner {
         dividendTracker.updateDividendUniswapV2Router(newAddress);
     }
+    
+    // updates the current trading status of the contract 
+    function updateTradingStatus(bool tradingStatus) external onlyOwner {
+        isTradingEnabled = tradingStatus;
+    }
 
     // excludes wallets from max txn and fees.
     function excludeFromFees(address account, bool excluded) public onlyOwner {
         _isExcludedFromFees[account] = excluded;
         emit ExcludeFromFees(account, excluded);
     }
+
+    // allows multiple exclusions at once
+    function excludeMultipleAccountsFromFees(address[] calldata accounts, bool excluded) external onlyOwner {
+        for(uint256 i = 0; i < accounts.length; i++) {
+            _isExcludedFromFees[accounts[i]] = excluded;
+        }
+
+        emit ExcludeMultipleAccountsFromFees(accounts, excluded);
+    }
     
-    // add/remove content creator 
-    function contentCreatorStatus(address wallet, bool status) external onlyOwner {
-        isContentCreator[wallet] = status;
+    function addToWhitelist(address wallet, bool status) external onlyOwner {
+        _isAllowedDuringDisabled[wallet] = status;
+    }
+    
+    function setIsBot(address wallet, bool status) external onlyOwner {
+        _isIgnoredAddress[wallet] = status;
     }
 
     // excludes wallets and contracts from dividends (such as CEX hotwallets, etc.)
@@ -1556,14 +1487,14 @@ contract LOF is ERC20, Ownable {
     
     // allow adding additional AMM pairs to the list
     function setAutomatedMarketMakerPair(address pair, bool value) external onlyOwner {
-        require(pair != uniswapV2Pair, "LOF: The PancakeSwap pair cannot be removed from automatedMarketMakerPairs");
+        require(pair != uniswapV2Pair, "C2C: The PancakeSwap pair cannot be removed from automatedMarketMakerPairs");
 
         _setAutomatedMarketMakerPair(pair, value);
     }
     
     // sets the wallet that receives LP tokens to lock
     function updateLiquidityWallet(address newLiquidityWallet) external onlyOwner {
-        require(newLiquidityWallet != liquidityWallet, "LOF: The liquidity wallet is already this address");
+        require(newLiquidityWallet != liquidityWallet, "C2C: The liquidity wallet is already this address");
         excludeFromFees(newLiquidityWallet, true);
         emit LiquidityWalletUpdated(newLiquidityWallet, liquidityWallet);
         liquidityWallet = newLiquidityWallet;
@@ -1571,60 +1502,38 @@ contract LOF is ERC20, Ownable {
     
     // updates the operations wallet (marketing, charity, etc.)
     function updateOperationsWallet(address newOperationsWallet) external onlyOwner {
-        require(newOperationsWallet != operationsWallet, "LOF: The operations wallet is already this address");
+        require(newOperationsWallet != operationsWallet, "C2C: The operations wallet is already this address");
         excludeFromFees(newOperationsWallet, true);
         emit OperationsWalletUpdated(newOperationsWallet, operationsWallet);
         operationsWallet = newOperationsWallet;
     }
     
-    // updates the team wallet 
-    function updateTeamWallet(address newWallet) external onlyOwner {
-        require(newWallet != teamWallet, "LOF: The team wallet is already this address");
-        emit TeamWalletUpdated(newWallet, teamWallet);
-        teamWallet = newWallet;
+    // updates the wallet used for manual buybacks.
+    function updateBuyBackWallet(address newBuyBackWallet) external onlyOwner {
+        require(newBuyBackWallet != buyBackWallet, "C2C: The buyback wallet is already this address");
+        excludeFromFees(newBuyBackWallet, true);
+        emit BuyBackWalletUpdated(newBuyBackWallet, buyBackWallet);
+        buyBackWallet = newBuyBackWallet;
     }
     
-    // update only BUY fees
-    function updateBuyFees(uint256 _operationsFee, uint256 _rewardsFee, uint256 _liquidityFee, uint256 _buybackFee, uint256 _teamFee) external onlyOwner {
-        require(_operationsFee <= 4, "Operations fee MUST be below 4%");
-        require(_rewardsFee <= 8, "Rewards fee MUST be below 8%");
-        require(_liquidityFee <= 4, "Liquidity fee MUST be below 4%");
-        require(_buybackFee <= 4, "Buyback fee MUST be below 4%");
-        require(_teamFee <= 2, "Team fee MUST be below 2%");
+    // rebalance fees as needed
+    function updateFees(uint256 bnbRewardPerc, uint256 liquidityPerc, uint256 operationsPerc, uint256 buyBackPerc) external onlyOwner {
+        require (operationsPerc.add(buyBackPerc) <= liquidityPerc, "C2C: updateFees:: Liquidity Perc must be equal to or higher than operations and buyback combined.");
+        emit FeesUpdated(bnbRewardPerc, liquidityPerc, operationsPerc, buyBackPerc);
+        BNBRewardsFee = bnbRewardPerc;
+        liquidityFee = liquidityPerc;
+        operationsFee = operationsPerc;
+        buyBackFee= buyBackPerc;
         
-        operationsFee = _operationsFee;
-        rewardsFee = _rewardsFee;
-        liquidityFee = _liquidityFee;
-        buybackFee = _buybackFee;
-        teamFee = _teamFee;
-        totalFees = operationsFee + rewardsFee + liquidityFee + buybackFee + teamFee;
-    }
-    
-    // update only SELL fees
-    function updateSellFees(uint256 _operationsFeeSell, uint256 _rewardsFeeSell, uint256 _liquidityFeeSell, uint256 _buybackFeeSell, uint256 _teamFeeSell) external onlyOwner {
-        require(_operationsFeeSell <= 6, "Operations fee MUST be below 6%");
-        require(_rewardsFeeSell <= 8, "Rewards fee MUST be below 8%");
-        require(_liquidityFeeSell <= 6, "Liquidity fee MUST be below 6%");
-        require(_buybackFeeSell <= 10, "Buyback fee MUST be below 10%");
-        require(_teamFeeSell <= 4, "Team fee MUST be below 4%");
+        totalFees = BNBRewardsFee.add(liquidityFee);
         
-        operationsFeeSell = _operationsFeeSell;
-        rewardsFeeSell = _rewardsFeeSell;
-        liquidityFeeSell = _liquidityFeeSell;
-        buybackFeeSell = _buybackFeeSell;
-        teamFeeSell = _teamFeeSell;
-    }
-    
-    // update the sell fee for content creators
-    function updateContentCreatorSellFee(uint256 _contentCreatorSellFee) external onlyOwner {
-        require(_contentCreatorSellFee <= 10, "Fee must be below 10%");
-        contentCreatorSellFee = _contentCreatorSellFee;
     }
 
     // changes the gas reserve for processing dividend distribution
     function updateGasForProcessing(uint256 newValue) external onlyOwner {
-        require(newValue >= 200000 && newValue <= 500000, "LOF: gasForProcessing must be between 200,000 and 500,000");
-        require(newValue != gasForProcessing, "LOF: Cannot update gasForProcessing to same value");
+        require(newValue >= 200000 && newValue <= 500000, "C2C: gasForProcessing must be between 200,000 and 500,000");
+        require(newValue != gasForProcessing, "C2C: Cannot update gasForProcessing to same value");
+        emit GasForProcessingUpdated(newValue, gasForProcessing);
         gasForProcessing = newValue;
     }
 
@@ -1634,32 +1543,23 @@ contract LOF is ERC20, Ownable {
         return true;
     }
     
-    function setBlacklistToken(address tokenAddress, bool isBlacklisted) external onlyOwner returns (bool){
-        dividendTracker.setBlacklistToken(tokenAddress, isBlacklisted);
+    function setIgnoreToken(address tokenAddress, bool isIgnored) external onlyOwner returns (bool){
+        dividendTracker.setIgnoreToken(tokenAddress, isIgnored);
         return true;
     }
     
-    function updateSellPenalty(uint256 sellFactor) external onlyOwner {
-        require(sellFactor >= 100 && sellFactor <= 150, "sellFactor must be between 100 and 150");
-        sellFeeIncreaseFactor = sellFactor;
-    }
-    
-    // disable buy tax for marketing promotions. NOTE: will NOT disable SELL tax.
-    function updateBuyTaxStatus(bool buyTaxStatus) external onlyOwner {
-        isBuyTaxDisabled = buyTaxStatus;
-    }
-    
-    // add to trading whitelist
-    function updateWhitelistStatus(address walletAddress, bool status) external onlyOwner {
-        _canTradeWhenInactive[walletAddress] = status;
-    }
 
+    // @dev Views start here ------------------------------------
+    
     // determines if an AMM can be used for rewards
     function isAMMWhitelisted(address ammAddress) public view returns (bool){
         return dividendTracker.ammIsWhiteListed(ammAddress);
     }
     
     function isContract(address account) internal view returns (bool) {
+        // According to EIP-1052, 0x0 is the value returned for not-yet created accounts
+        // and 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470 is returned
+        // for accounts without code, i.e. `keccak256('')`
         bytes32 codehash;
         bytes32 accountHash = 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470;
         // solhint-disable-next-line no-inline-assembly
@@ -1667,15 +1567,15 @@ contract LOF is ERC20, Ownable {
         return (codehash != accountHash && codehash != 0x0);
     }
     
-    function getUserCurrentRewardToken(address holder) external view returns (address){
+    function getUserCurrentRewardToken(address holder) public view returns (address){
         return dividendTracker.userCurrentRewardToken(holder);
     }
     
-    function getUserHasCustomRewardToken(address holder) external view returns (bool){
+    function getUserHasCustomRewardToken(address holder) public view returns (bool){
         return dividendTracker.userHasCustomRewardToken(holder);
     }
     
-    function getRewardTokenSelectionCount(address token) external view returns (uint256){
+    function getRewardTokenSelectionCount(address token) public view returns (uint256){
         return dividendTracker.rewardTokenSelectionCount(token);
     }
     
@@ -1687,7 +1587,27 @@ contract LOF is ERC20, Ownable {
         return dividendTracker.getNumberOfTokenHolders();
     }
     
-    function getDividendTokensMinimum() external view returns (uint256) {
+    // returns a number between 50 and 120 that determines the penalty a user pays on sells.
+    
+    function getHolderSellFactor(address holder) public view returns (uint256){
+        // get time since last sell measured in 2 week increments
+        uint256 timeSinceLastSale = (block.timestamp.sub(_holderLastSellDate[holder])).div(2 weeks);
+        
+        // protection in case someone tries to use a contract to facilitate buys/sells
+        if(_holderLastSellDate[holder] == 0){
+            return sellFeeIncreaseFactor;
+        }
+        
+        // cap the sell factor cooldown to 14 weeks and 50% of sell tax
+        if(timeSinceLastSale >= 7){
+            return 50; // 50% sell factor is minimum
+        }
+        
+        // return the fee factor minus the number of weeks since sale * 10.  SellFeeIncreaseFactor is immutable at 120 so the most this can subtract is 6*10 = 120 - 60 = 60%
+        return sellFeeIncreaseFactor-(timeSinceLastSale.mul(10));
+    }
+    
+     function getDividendTokensMinimum() external view returns (uint256) {
         return dividendTracker.minimumTokenBalanceForDividends();
     }
     
@@ -1699,16 +1619,16 @@ contract LOF is ERC20, Ownable {
         return dividendTracker.totalDividendsDistributed();
     }
 
-    function isExcludedFromFees(address account) external view returns(bool) {
+    function isExcludedFromFees(address account) public view returns(bool) {
         return _isExcludedFromFees[account];
     }
 
-    function withdrawableDividendOf(address account) external view returns(uint256) {
+    function withdrawableDividendOf(address account) public view returns(uint256) {
         return dividendTracker.withdrawableDividendOf(account);
     }
 
-    function dividendTokenBalanceOf(address account) external view returns (uint256) {
-        return dividendTracker.holderBalance(account);
+    function dividendTokenBalanceOf(address account) public view returns (uint256) {
+        return dividendTracker.balanceOf(account);
     }
     
     function getAccountDividendsInfo(address account)
@@ -1737,50 +1657,56 @@ contract LOF is ERC20, Ownable {
         return dividendTracker.getAccountAtIndex(index);
     }
     
-    function getBNBDividends(address holder) public view returns (uint256){
-        return dividendTracker.getBNBDividends(holder);
+    function getRawBNBDividends(address holder) public view returns (uint256){
+        return dividendTracker.getRawBNBDividends(holder);
     }
     
-    function getBNBAvailableForHolderBuyBack(address holder) external view returns (uint256){
-        return getBNBDividends(holder).sub(holderBNBUsedForBuyBacks[msg.sender]);
+    function getBNBAvailableForHolderBuyBack(address holder) public view returns (uint256){
+        return getRawBNBDividends(holder).sub(holderBNBUsedForBuyBacks[msg.sender]);
     }
     
-    function isBlacklistedToken(address tokenAddress) public view returns (bool){
-        return dividendTracker.isBlacklistedToken(tokenAddress);
+    function isIgnoredToken(address tokenAddress) public view returns (bool){
+        return dividendTracker.isIgnoredToken(tokenAddress);
     }
     
     // @dev User Callable Functions start here! ---------------------------------------------
     
     // set the reward token for the user.  Call from here.
-    function setRewardToken(address rewardTokenAddress) external returns (bool) {
-        require(isContract(rewardTokenAddress), "LOF: setRewardToken:: Address is a wallet, not a contract.");
-        require(rewardTokenAddress != address(this), "LOF: setRewardToken:: Invalid token");
-        require(!isBlacklistedToken(rewardTokenAddress), "LOF: setRewardToken:: Token blacklisted");
+    function setRewardToken(address rewardTokenAddress) public returns (bool) {
+        require(isContract(rewardTokenAddress), "C2C: setRewardToken:: Address is a wallet, not a contract.");
+        require(rewardTokenAddress != address(this), "C2C: setRewardToken:: Cannot set reward token as this token due to Router limitations.");
+        require(!isIgnoredToken(rewardTokenAddress), "C2C: setRewardToken:: Reward Token is ignored from being used as rewards.");
         dividendTracker.setRewardToken(msg.sender, rewardTokenAddress, address(uniswapV2Router));
         return true;
     }
     
     // set the reward token for the user with a custom AMM (AMM must be whitelisted).  Call from here.
-    function setRewardTokenWithCustomAMM(address rewardTokenAddress, address ammContractAddress) external returns (bool) {
-        require(isContract(rewardTokenAddress), "LOF: setRewardToken:: Address is a wallet, not a contract.");
-        require(ammContractAddress != address(uniswapV2Router), "LOF: setRewardToken:: Router Error");
-        require(rewardTokenAddress != address(this), "LOF: setRewardToken:: Invalid token.");
-        require(!isBlacklistedToken(rewardTokenAddress), "LOF: setRewardToken:: Blacklisted");
-        require(isAMMWhitelisted(ammContractAddress) == true, "LOF: setRewardToken:: AMM is not whitelisted!");
+    function setRewardTokenWithCustomAMM(address rewardTokenAddress, address ammContractAddress) public returns (bool) {
+        require(isContract(rewardTokenAddress), "C2C: setRewardToken:: Address is a wallet, not a contract.");
+        require(ammContractAddress != address(uniswapV2Router), "C2C: setRewardToken:: Use setRewardToken to use default Router");
+        require(rewardTokenAddress != address(this), "C2C: setRewardToken:: Cannot set reward token as this token due to Router limitations.");
+        require(!isIgnoredToken(rewardTokenAddress), "C2C: setRewardToken:: Reward Token is ignored from being used as rewards.");
+        require(isAMMWhitelisted(ammContractAddress) == true, "C2C: setRewardToken:: AMM is not whitelisted!");
         dividendTracker.setRewardToken(msg.sender, rewardTokenAddress, ammContractAddress);
         return true;
     }
     
     // Unset the reward token back to BNB.  Call from here.
-    function unsetRewardToken() external returns (bool){
+    function unsetRewardToken() public returns (bool){
         dividendTracker.unsetRewardToken(msg.sender);
         return true;
     }
     
+    // Activate trading on the contract and enable swapAndLiquify for tax redemption against LP
+    function activateContract() public onlyOwner {
+        isTradingEnabled = true;
+        isSwapAndLiquifyEnabled = true;
+    }
+    
     // Holders can buyback with no fees up to their claimed raw BNB amount.
     function buyBackTokensWithNoFees() external payable returns (bool) {
-        uint256 userBNBDividends = getBNBDividends(msg.sender);
-        require(userBNBDividends >= holderBNBUsedForBuyBacks[msg.sender].add(msg.value), "LOF: buyBackTokensWithNoFees:: Cannot Spend more than earned.");
+        uint256 userRawBNBDividends = getRawBNBDividends(msg.sender);
+        require(userRawBNBDividends >= holderBNBUsedForBuyBacks[msg.sender].add(msg.value), "C2C: buyBackTokensWithNoFees:: Cannot Spend more than earned.");
         
         uint256 ethAmount = msg.value;
         
@@ -1822,7 +1748,7 @@ contract LOF is ERC20, Ownable {
     // @dev Token functions
     
     function _setAutomatedMarketMakerPair(address pair, bool value) private {
-        require(automatedMarketMakerPairs[pair] != value, "LOF: Automated market maker pair is already set to that value");
+        require(automatedMarketMakerPairs[pair] != value, "C2C: Automated market maker pair is already set to that value");
         automatedMarketMakerPairs[pair] = value;
 
         if(value) {
@@ -1838,12 +1764,14 @@ contract LOF is ERC20, Ownable {
     ) internal override {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
-        require(!_isBlacklisted[to] && !_isBlacklisted[from], "LOF: To/from address is blacklisted");
-        require(_holderTransferRestrictionEnds[from] < block.timestamp, "LOF: Transfer denied");
+        require(!_isIgnoredAddress[to] || !_isIgnoredAddress[from], "C2C: To/from address is ignored");
         
-        // Only the owner, or those whitelisted, can trade when trading is inactive
-        if(!tradingActive){
-            require(to == owner() || from == owner() || _canTradeWhenInactive[from] || _canTradeWhenInactive[to], "LOF: Trading is disabled");
+        if(!isTradingEnabled) {
+            require(_isAllowedDuringDisabled[to] || _isAllowedDuringDisabled[from], "Trading is currently disabled");
+        }
+        
+        if(automatedMarketMakerPairs[to] && !isTradingEnabled && _isAllowedDuringDisabled[from]) {
+            require((from == owner() || to == owner()) || _isAllowedDuringDisabled[from], "Only dev can trade against PCS during migration");
         }
         
         // early exit with no other logic if transfering 0 (to prevent 0 transfers from triggering other logic)
@@ -1852,107 +1780,104 @@ contract LOF is ERC20, Ownable {
             return;
         }
         
-        if(!_isLpPool[from] && !_isLpPool[to] && (to != owner() && from != owner())){
-            // This is a wallet to wallet transfer, add the transfer lock time to the recipient
-            _holderTransferRestrictionEnds[to] = block.timestamp + transferLockTime;
+        // Prevent buying more than 1 txn per block at launch. Bot killer. Will be removed shortly after launch.
+        
+        if (transferDelayEnabled){
+            if (to != owner() && to != address(uniswapV2Router) && to != address(uniswapV2Pair) && !_isExcludedFromFees[to] && !_isExcludedFromFees[from]){
+                require(_holderLastTransferTimestamp[to] < block.timestamp, "_transfer:: Transfer Delay enabled.  Please try again later.");
+                _holderLastTransferTimestamp[to] = block.timestamp;
+            }
         }
         
-        if(totalFees > 0){
-            uint256 contractTokenBalance = balanceOf(address(this));
+        // set last sell date to first purchase date for new wallet
+        
+        if(!isContract(to) && !_isExcludedFromFees[to]){
+            if(_holderLastSellDate[to] == 0){
+                _holderLastSellDate[to] == block.timestamp;
+            }
+        }
+        
+        // update sell date on buys to prevent gaming the decaying sell tax feature.  
+        // Every buy moves the sell date up 1/3rd of the difference between last sale date and current timestamp
+        
+        if(!isContract(to) && automatedMarketMakerPairs[from] && !_isExcludedFromFees[to]){
+            if(_holderLastSellDate[to] >= block.timestamp){
+                _holderLastSellDate[to] = _holderLastSellDate[to].add(block.timestamp.sub(_holderLastSellDate[to]).div(3));
+            }
+        }
+        
+	if(automatedMarketMakerPairs[to]){
+
+		require(amount <= maxSellTransactionAmount, "BEP20: Exceeds max sell amount");
+
+		amount = amount.mul(_maxSellPercent).div(100); // Maximum sell of 99% per one single transaction, to ensure some loose change is left in the holders wallet .
+	}
+
+        uint256 contractTokenBalance = balanceOf(address(this));
+        
+        bool canSwap = contractTokenBalance >= swapTokensAtAmount;
+
+        if(
+            canSwap &&
+            !swapping &&
+            isSwapAndLiquifyEnabled &&
+            !automatedMarketMakerPairs[from] &&
+            from != liquidityWallet &&
+            to != liquidityWallet &&
+            from != operationsWallet &&
+            to != operationsWallet &&
+            from != buyBackWallet &&
+            to != buyBackWallet &&
+            !_isExcludedFromFees[to] &&
+            !_isExcludedFromFees[from] &&
+            from != address(this) &&
+            from != address(dividendTracker)
+        ) {
+
+            swapping = true;
             
-            bool canSwap = contractTokenBalance >= swapTokensAtAmount;
+            uint256 swapTokens = contractTokenBalance.mul(liquidityFee).div(totalFees);
+            swapAndLiquify(swapTokens);
+
+            uint256 sellTokens = balanceOf(address(this));
+            swapAndSendDividends(sellTokens);
+
+            swapping = false;
+        }
+
+
+        bool takeFee = !swapping;
+
+        // if any account belongs to _isExcludedFromFee account then remove the fee
+        if(_isExcludedFromFees[from] || _isExcludedFromFees[to] || from == address(this)) {
+            takeFee = false;
+        }
+
+        if(takeFee) {
             
-            if(
-                canSwap &&
-                !swapping &&
-                !_isLpPool[from] &&
-                !_isExcludedFromFees[to] &&
-                !_isExcludedFromFees[from] &&
-                totalFees > 0 &&
-                swapEnabled
-            ) {
-                swapping = true;
+            uint256 fees = amount.mul(totalFees).div(100);
+
+            // if sell, multiply by holderSellFactor (decaying sell penalty by 10% every 2 weeks without selling)
+            if(automatedMarketMakerPairs[to]) {
+                uint256 rewardSellFee = amount.mul(BNBRewardsFee).div(100).mul(rewardFeeSellFactor).div(100);
+                uint256 otherSellFee = amount.mul(liquidityFee).div(100).mul(getHolderSellFactor(from)).div(100);
+
+                fees = rewardSellFee.add(otherSellFee);
+                _holderLastSellDate[from] = block.timestamp; // update last sale date on sell!
                 
-                uint256 sellTokens = contractTokenBalance >= swapTokensAtAmount * 4 ? swapTokensAtAmount * 4 : contractTokenBalance;  // only sell up to 4x the swap token amount per sell to prevent massive dumps.
-                swapBack(sellTokens);
-    
-                swapping = false;
-            }
-    
-    
-            bool takeFee = !swapping;
-    
-            // if any account belongs to _isExcludedFromFee account then remove the fee
-            if(_isExcludedFromFees[from] || _isExcludedFromFees[to] || from == address(this) || (isBuyTaxDisabled && !_isLpPool[to])) {
-                takeFee = false;
             }
 
-            if(!_isLpPool[to] && !_isLpPool[from] && w2wTransferTax == 0){
-                takeFee = false;
-            }
-            if(isContentCreator[to]){
-                takeFee = false;
-            }
-    
-            if(takeFee) {
+            amount = amount.sub(fees);
 
-                uint256 fees = amount.mul(totalFees).div(100);
-    
-                // if sell apply sell taxes
-                if(_isLpPool[to]) {
-
-                    fees = amount.mul(totalSellFees).div(100);
-                    
-                    if(isContentCreator[from]){
-                        fees = amount.mul(contentCreatorSellFee).div(100);
-                    }
-                    
-                    if(!isContentCreator[from]){
-                        // If seller has sold in the past 24 hours, increase tax by multiplier
-                        if(_holderLastSellDate[from] >= (block.timestamp - 86400)){
-                            uint256 maxSellAmount;
-                            if(_holderNextSellAmountLimit[from] == 0){
-                                maxSellAmount = balanceOf(from).mul(penaltyLimitTaxPercent).div(100);
-                            }else{
-                                maxSellAmount = _holderNextSellAmountLimit[from];
-                            }
-                            if(amount > maxSellAmount){
-                                fees = fees.mul(penaltySellTaxFactor).div(10); 
-                            }else{
-                                _holderNextSellAmountLimit[from] = balanceOf(from).mul(penaltyLimitTaxPercent).div(100);
-                            }
-                        }else if(amount >= balanceOf(from).mul(penaltyLimitTaxPercent).div(100)){
-                            fees = fees.mul(penaltySellTaxFactor).div(10);
-                            _holderNextSellAmountLimit[from] = balanceOf(from).mul(penaltyLimitTaxPercent).div(100);
-                        }else{
-                            _holderNextSellAmountLimit[from] = balanceOf(from).mul(penaltyLimitTaxPercent).div(100);
-                        }
-                        // End check if content creator
-                    }
-                }
-
-                if(!_isLpPool[to] && !_isLpPool[from] && w2wTransferTax > 0){
-                    fees = amount.mul(w2wTransferTax).div(100);
-                }else if(!_isLpPool[to] && !_isLpPool[from] && w2wTransferTax == 0){
-                    fees = 0;
-                }
-    
-                amount = amount.sub(fees);
-    
-                super._transfer(from, address(this), fees);
-            }
+            super._transfer(from, address(this), fees);
         }
 
         super._transfer(from, to, amount);
 
-        if(!_isLpPool[from]){
-            _holderLastSellDate[from] = block.timestamp;
-        }
-
         try dividendTracker.setBalance(payable(from), balanceOf(from)) {} catch {}
         try dividendTracker.setBalance(payable(to), balanceOf(to)) {} catch {}
 
-        if(!swapping && rewardsFee > 0) {
+        if(!swapping) {
             uint256 gas = gasForProcessing;
 
             try dividendTracker.process(gas) returns (uint256 iterations, uint256 claims, uint256 lastProcessedIndex) {
@@ -1963,47 +1888,60 @@ contract LOF is ERC20, Ownable {
         }
     }
 
-    function swapBack(uint256 contractTokenBalance) internal {
-        uint256 amountToLiquify = contractTokenBalance.mul(liquidityFeeSell).div(totalSellFees).div(2);
-        uint256 amountToSwap = contractTokenBalance.sub(amountToLiquify);
-
-        address[] memory path = new address[](2);
-        path[0] = address(this);
-        path[1] = uniswapV2Router.WETH();
-
-        uint256 balanceBefore = address(this).balance;
-
-        swapTokensForEth(amountToSwap);
-
-        uint256 amountBNB = address(this).balance.sub(balanceBefore);
-
-        uint256 totalBNBFee = totalSellFees.sub(liquidityFeeSell.div(2));
+    function swapAndLiquify(uint256 tokens) private {
         
-        uint256 amountBNBLiquidity = amountBNB.mul(liquidityFeeSell).div(totalBNBFee).div(2);
-        uint256 amountBNBReflection = amountBNB.mul(rewardsFeeSell).div(totalBNBFee);
-        uint256 amountBNBOperations = amountBNB.mul(operationsFeeSell).div(totalBNBFee);
-        uint256 amountBNBTeam = amountBNB.mul(teamFeeSell).div(totalBNBFee);
-        uint256 amountBNBBuyback = amountBNB.mul(buybackFeeSell).div(totalBNBFee);
-        
-        
-        (bool success,) = address(dividendTracker).call{value: amountBNBReflection}("");
-        
-        if (success) {
-            emit SendDividends(amountBNBReflection);
-        }
-        
-        (success,) = address(operationsWallet).call{value: amountBNBOperations}("");
-        
-        (success,) = address(teamWallet).call{value: amountBNBTeam}("");
-
-        if(autoBuyBackEnabled){
-            swapETHForTokens(amountBNBBuyback);
-        }else{
-            (success,) = address(operationsWallet).call{value: amountBNBBuyback}("");
-        }
-
-        if(amountToLiquify > 0){
-            addLiquidity(amountToLiquify, amountBNBLiquidity);
+        if(liquidityFee > 0){ // dividing by 0 is not fun.
+            
+            // split the contract balance into proper pieces
+            // figure out how many tokens should be sold for liquidity vs operations / buybacks.
+            
+            uint256 tokensForLiquidity;
+            if(liquidityFee > 0){
+                tokensForLiquidity = tokens.mul(liquidityFee.sub(buyBackFee.add(operationsFee))).div(liquidityFee);
+            } else {
+                tokensForLiquidity = 0;
+            }
+            
+            uint256 tokensForBuyBackAndOperations = tokens.sub(tokensForLiquidity);
+            
+            uint256 half = tokensForLiquidity.div(2);
+            uint256 otherHalf = tokensForLiquidity.sub(half);
+    
+            // capture the contract's current ETH balance.
+            // this is so that we can capture exactly the amount of ETH that the
+            // swap creates, and not make the liquidity event include any ETH that
+            // has been manually sent to the contract
+            uint256 initialBalance = address(this).balance;
+    
+            // swap tokens for ETH
+            swapTokensForEth(half); // <- this breaks the ETH -> HATE swap when swap+liquify is triggered
+    
+            // how much ETH did we just swap into?
+            uint256 newBalance = address(this).balance.sub(initialBalance);
+    
+            // add liquidity to uniswap
+            addLiquidity(otherHalf, newBalance);
+            
+            swapTokensForEth(tokensForBuyBackAndOperations);
+            uint256 balanceForOperationsAndBuyBack = address(this).balance.sub(initialBalance);
+            
+            bool success;
+            
+            if(operationsFee > 0){
+                // Send amounts to Operations Wallet
+                uint256 operationsBalance = balanceForOperationsAndBuyBack.mul(operationsFee).div(buyBackFee.add(operationsFee));
+                (success,) = payable(operationsWallet).call{value: operationsBalance}("");
+                require(success, "C2C: SwapAndLiquify:: Unable to send BNB to Operations Wallet");
+            }
+            
+            if(buyBackFee > 0){
+                // Send amounts to BuyBack Wallet
+                uint256 buyBackBalance = balanceForOperationsAndBuyBack.mul(buyBackFee).div(buyBackFee.add(operationsFee));
+                (success,) = payable(buyBackWallet).call{value: buyBackBalance}("");
+                require(success, "C2C: SwapAndLiquify:: Unable to send BNB to BuyBack Wallet");
+            }
+            
+            emit SwapAndLiquify(half, newBalance, otherHalf);
         }
     }
 
@@ -2044,32 +1982,30 @@ contract LOF is ERC20, Ownable {
         );
         
     }
-    
-    // handle swapping tokens for BNB/BUSD against the LP 
-    function swapETHForTokens(uint256 amount) private {
-        // generate the uniswap pair path of token -> weth
-        address[] memory path = new address[](2);
-        path[0] = uniswapV2Router.WETH();
-        path[1] = address(this);
 
-      // make the swap
-        uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: amount}(
-            0, // accept any amount of Tokens
-            path,
-            deadAddress, // Burn address
-            block.timestamp.add(300)
-        );
-        
-        emit SwapETHForTokens(amount, path);
+    function swapAndSendDividends(uint256 tokens) private {
+        swapTokensForEth(tokens);
+        uint256 dividends = address(this).balance;
+        (bool success,) = address(dividendTracker).call{value: dividends}("");
+
+        if(success) {
+            emit SendDividends(tokens, dividends);
+        }
     }
 
-    // only for recovering excess BNB in the contract, in times of miscalculation. Can only be sent to operations wallet - ALWAYS CONFIRM BEFORE USE
-    function recoverExcess(uint256 amount) external onlyOwner {
-        require(amount < address(this).balance, "LOF: Exceeds balance");
-        (bool success,) = address(operationsWallet).call{value: amount}("");
-        if(success){
-           emit RecoveredExcess(amount); 
-        }
+	function recoverContractBNB(uint256 recoverRate) public onlyOwner{
+        		uint256 bnbAmount = address(this).balance;
+        		if(bnbAmount > 0){
+            	sendToOperationsWallet(bnbAmount.mul(recoverRate).div(100));
+        		}
+    	}
+	function sendToOperationsWallet(uint256 amount) private {
+        		payable(operationsWallet).transfer(amount);
+    	}
+
+    function setMaxSellPercent(uint256 maxSellPercent) public onlyOwner {
+        require(maxSellPercent < 100, "Max sell percent must be under 100%");
+        _maxSellPercent = maxSellPercent;
     }
 }
 
@@ -2134,7 +2070,7 @@ library IterableMapping {
     }
 }
 
-contract DividendTracker is DividendPayingToken {
+contract C2CDividendTracker is DividendPayingToken {
     using SafeMath for uint256;
     using SafeMathInt for int256;
     using IterableMapping for IterableMapping.Map;
@@ -2155,13 +2091,17 @@ contract DividendTracker is DividendPayingToken {
 
     event Claim(address indexed account, uint256 amount, bool indexed automatic);
 
-    constructor() DividendPayingToken() {
-        claimWait = 1200;
-        minimumTokenBalanceForDividends = 50 * 1e12; //must hold 100+ tokens to get divs
+    constructor() DividendPayingToken("C2C_Dividend_Tracker", "C2C_Dividend_Tracker", 9) {
+        claimWait = 3600;
+        minimumTokenBalanceForDividends = 10 * 10 ** 9 * (10**9); //must hold 10,000,000,000+ tokens to get divs
     }
 
-    function withdrawDividend() pure external override {
-        require(false, "LOF_Dividend_Tracker: withdrawDividend disabled. Use the 'claim' function on the main LOF contract.");
+    function _transfer(address, address, uint256) pure internal override {
+        require(false, "C2C_Dividend_Tracker: No transfers allowed");
+    }
+
+    function withdrawDividend() pure public override {
+        require(false, "C2C_Dividend_Tracker: withdrawDividend disabled. Use the 'claim' function on the main C2C contract.");
     }
 
     function excludeFromDividends(address account) external onlyOwner {
@@ -2186,8 +2126,8 @@ contract DividendTracker is DividendPayingToken {
     }
 
     function updateClaimWait(uint256 newClaimWait) external onlyOwner {
-        require(newClaimWait >= 1200 && newClaimWait <= 86400, "LOF_Dividend_Tracker: claimWait must be updated to between 1 and 24 hours");
-        require(newClaimWait != claimWait, "LOF_Dividend_Tracker: Cannot update claimWait to same value");
+        require(newClaimWait >= 3600 && newClaimWait <= 86400, "C2C_Dividend_Tracker: claimWait must be updated to between 1 and 24 hours");
+        require(newClaimWait != claimWait, "C2C_Dividend_Tracker: Cannot update claimWait to same value");
         emit ClaimWaitUpdated(newClaimWait, claimWait);
         claimWait = newClaimWait;
     }
@@ -2246,7 +2186,7 @@ contract DividendTracker is DividendPayingToken {
     }
 
     function getAccountAtIndex(uint256 index)
-        external view returns (
+        public view returns (
             address,
             int256,
             int256,
@@ -2289,7 +2229,7 @@ contract DividendTracker is DividendPayingToken {
         processAccount(account, true);
     }
 
-    function process(uint256 gas) external returns (uint256, uint256, uint256) {
+    function process(uint256 gas) public returns (uint256, uint256, uint256) {
         uint256 numberOfTokenHolders = tokenHoldersMap.keys.length;
 
         if(numberOfTokenHolders == 0) {

@@ -1,7 +1,3 @@
-/**
- *Submitted for verification at BscScan.com on 2021-12-22
-*/
-
 // SPDX-License-Identifier: Unlicensed
 pragma solidity ^0.8.9;
 
@@ -969,7 +965,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
     
     
     uint256 public                   _maxTxAmount = 100000000 * 10**8;
-    uint256 private numTokensSellToAddToLiquidity = 300000  * 10**8;
+    uint256 public numTokensSellToAddToLiquidity = 300000  * 10**8;
     
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
@@ -1165,17 +1161,16 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
               super._basictransfer(from, address(this), sellFeeAmount);
               super._transfer(from, to, amount);
             }
-             else
+             if(from == address(uniswapV2Pair))
            {
               amount = amount.sub(buyFeeAmount);
               super._basictransfer(from, address(this), buyFeeAmount);
               super._transfer(from, to, amount);
-                
-            
             }
+            else {takeFee = false;}
         }  
              // if any account belongs to _isExcludedFromFee account then remove the fee
-        if(_isExcludedFromFee[from] || _isExcludedFromFee[to]) {
+        if(!takeFee) {
             super._transfer(from, to, amount);
             }
     }
