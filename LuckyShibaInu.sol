@@ -1,9 +1,9 @@
 /**
- *Submitted for verification at BscScan.com on 2021-12-19
+ *Submitted for verification at BscScan.com on 2022-02-19
 */
 
 /**
- *Submitted for verification at BscScan.com on 2021-12-20
+ *Submitted for verification at BscScan.com on 2022-02-19
 */
 
 //// SPDX-License-Identifier: MIT
@@ -28,7 +28,7 @@
 // 1%: Development
 // 1%: Marketing
 
-pragma solidity ^0.8.4;
+pragma solidity 0.8.9;
 
 // IERC20 interface taken from: https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/IERC20.sol
 interface IERC20 {
@@ -559,7 +559,7 @@ contract LuckyShibaInu is Context, IERC20, Ownable {
     uint private constant DAY = 86400;                        // How many seconds in a day, for DumpTax Calculation
     
     // Anti-Whale Settings 
-    uint256 public _whaleSellThreshold = 500 * 10**9 * 10**9; // 500 billion
+    uint256 public _whaleSellThreshold = 7 * 10**12 * 10**9; // 7 Trillion LSHIB
     uint    public _whaleSellTimer     = DAY;                 // 24 hours
     mapping (address => uint256) private _amountSold;
     mapping (address => uint) private _timeSinceFirstSell;
@@ -762,22 +762,31 @@ contract LuckyShibaInu is Context, IERC20, Ownable {
         _isExcludedFromFees[account] = false;
     }
     
+    //@notice For exchange listing purpose if needed to make taxes lower or zero
     function setTaxFeePercent(uint256 taxFee) external onlyOwner() {
+        require(taxFee <= 9, "Cannot set Buy tax above 9%, the default tax");
         _taxFee = taxFee;
     }
     
     function setSellTaxFeePerecent(uint256 taxFee) external onlyOwner() {
+        require(taxFee <= 16, "Cannot set Sell tax above 16%, the default tax");
         _sellTaxFee = taxFee;
     }
     
+    //@Dev can only decrease the tax and not increase it. Purpose is for exchange listing if needed.
     function setWhaleSellTaxFeePerecent(uint256 taxFee) external onlyOwner() {
+        require(taxFee <= 23, "Cannot set Dump tax above 23%, the default tax");
         _whaleSellTaxFee = taxFee;
     }
     
+    // Max token amount per transaction can never be set below 10% of total supply
+    //  This function purpose if necessary to mitigate malicious activities like snipper BOTs, liquidity draining etc
     function setMaxTxAmount(uint256 maxTxAmount) external onlyOwner() {
+        require(maxTxAmount >= 100 * 10**12 * 10**9, "Cannot set transaction amount less than 10 percent of total supply!");
         _maxTxAmount = maxTxAmount;
     }
     
+    // SwapAndLiquify minimum token threshold to kick-in
     function setTokenSwapThreshold(uint256 tokenSwapThreshold) external onlyOwner() {
         _tokenSwapThreshold = tokenSwapThreshold;
     }
@@ -806,12 +815,12 @@ contract LuckyShibaInu is Context, IERC20, Ownable {
         _enableLiquidity = b;
     }
 
-    function setWhaleSellThreshold(uint256 amount) external onlyOwner() {
-        _whaleSellThreshold = amount;
-    }
-    
-    function setWhaleSellTimer(uint time) external onlyOwner() {
-        _whaleSellTimer = time;
+    // Dev cannot set WhaleSellThreshold below 100 Billion LSHIB token
+    // This function purpose to mitigate Snipper BOT attacks on launch - by execising Dump tax of 23% for sold tokens above WhaleSellthreshold only within 24-hour tracking.
+    // After 24 hours, tax is brought back to normal Sell Tax
+    function setWhaleSellThreshold(uint256 whaleSellThreshold) external onlyOwner() {
+        require(whaleSellThreshold >= 100 * 10**9 * 10**9, "WhaleSellThreshold cannot be set below 100 Billion LSHIB");
+        _whaleSellThreshold = whaleSellThreshold;
     }
     
     function setLottery(bool b) external onlyOwner() {

