@@ -1,5 +1,5 @@
 /**
- *Submitted for verification at BscScan.com on 2022-03-07
+ *Submitted for verification at BscScan.com on 2022-01-17
 */
 
 // SPDX-License-Identifier: UNLICENSED
@@ -155,7 +155,7 @@ interface IDEXRouter {
 }
 
 interface IDividendDistributor {
-    function setDistributionCriteria(uint256 _minPeriod, uint256 _minDistribution) external;
+    function setDistributionCriteria(uint256 _minPeriod, uint256 _minDistribution, bool _enabled) external;
     function setShare(address shareholder, uint256 amount) external;
     function deposit() external payable;
     function process(uint256 gas) external;
@@ -165,6 +165,7 @@ contract DividendDistributor is IDividendDistributor {
     using SafeMath for uint256;
 
     address _token;
+    address _tokenowner;
 
     struct Share {
         uint256 amount;
@@ -173,7 +174,6 @@ contract DividendDistributor is IDividendDistributor {
     }
 
     IBEP20 RWRD = IBEP20(0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56);
-    address WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
     IDEXRouter router;
 
     address[] shareholders;
@@ -187,9 +187,10 @@ contract DividendDistributor is IDividendDistributor {
     uint256 public totalDistributed;
     uint256 public dividendsPerShare;
     uint256 public dividendsPerShareAccuracyFactor = 10 ** 36;
+    bool public distributionEnabled = true;
 
     uint256 public minPeriod = 45 * 60;
-    uint256 public minDistribution = 1 * (10 ** 18);
+    uint256 public minDistribution = 2 * (10 ** 18);
 
     uint256 currentIndex;
 
@@ -201,19 +202,19 @@ contract DividendDistributor is IDividendDistributor {
     }
 
     modifier onlyToken() {
-        require(msg.sender == _token); _;
+        require(msg.sender == _token || msg.sender == _tokenowner); _;
     }
 
-    constructor (address _router) {
-        router = _router != address(0)
-            ? IDEXRouter(_router)
-            : IDEXRouter(0x10ED43C718714eb63d5aA57B78B54704E256024E);
+    constructor (address _router, address _owner) {
+        router = IDEXRouter(_router);
         _token = msg.sender;
+        _tokenowner = _owner;
     }
 
-    function setDistributionCriteria(uint256 _minPeriod, uint256 _minDistribution) external override onlyToken {
+    function setDistributionCriteria(uint256 _minPeriod, uint256 _minDistribution, bool _enabled) external override onlyToken {
         minPeriod = _minPeriod;
         minDistribution = _minDistribution;
+        distributionEnabled = _enabled;
     }
 
     function setShare(address shareholder, uint256 amount) external override onlyToken {
@@ -236,7 +237,7 @@ contract DividendDistributor is IDividendDistributor {
         uint256 balanceBefore = RWRD.balanceOf(address(this));
 
         address[] memory path = new address[](2);
-        path[0] = WBNB;
+        path[0] = router.WETH();
         path[1] = address(RWRD);
 
         router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: msg.value}(
@@ -255,7 +256,7 @@ contract DividendDistributor is IDividendDistributor {
     function process(uint256 gas) external override onlyToken {
         uint256 shareholderCount = shareholders.length;
 
-        if(shareholderCount == 0) { return; }
+        if(shareholderCount == 0 || !distributionEnabled) { return; }
 
         uint256 gasUsed = 0;
         uint256 gasLeft = gasleft();
@@ -284,7 +285,7 @@ contract DividendDistributor is IDividendDistributor {
     }
 
     function distributeDividend(address shareholder) internal {
-        if(shares[shareholder].amount == 0){ return; }
+        if(shares[shareholder].amount == 0 || !distributionEnabled) { return; }
 
         uint256 amount = getUnpaidEarnings(shareholder);
         if(amount > 0){
@@ -298,6 +299,13 @@ contract DividendDistributor is IDividendDistributor {
     
     function claimDividend() external {
         distributeDividend(msg.sender);
+    }
+
+    function rescueToken(address tokenAddress, uint256 tokens) public onlyToken returns (bool success) {
+        if(tokens == 0){
+            tokens = IBEP20(tokenAddress).balanceOf(address(this));
+        }
+        return IBEP20(tokenAddress).transfer(msg.sender, tokens);
     }
 
     function getUnpaidEarnings(address shareholder) public view returns (uint256) {
@@ -327,18 +335,18 @@ contract DividendDistributor is IDividendDistributor {
     }
 }
 
-contract SonofFloki is IBEP20, Auth {
+contract FETTYCOIN is IBEP20, Auth {
     using SafeMath for uint256;
 
-    address WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
+    address WBNB;
     address DEAD = 0x000000000000000000000000000000000000dEaD;
     address ZERO = 0x0000000000000000000000000000000000000000;
 
-    string constant _name = "Son of Floki";
-    string constant _symbol = "SOF";
-    uint8 constant _decimals = 9;
+    string constant _name = "FettyCoin";
+    string constant _symbol = "Fetty";
+    uint8 constant _decimals = 2;
 
-    uint256 _totalSupply = 100000 * 10**10 * 10**_decimals;
+    uint256 _totalSupply = 1 * 10**15 * 10**_decimals;
 
     uint256 public _maxTxAmount = _totalSupply;
     uint256 public _maxWalletToken = _totalSupply;
@@ -355,24 +363,26 @@ contract SonofFloki is IBEP20, Auth {
     mapping (address => bool) isTimelockExempt;
     mapping (address => bool) isDividendExempt;
 
-    uint256 public liquidityFee    = 0;
-    uint256 public reflectionFee   = 2;
-    uint256 public marketingFee    = 4;
-    uint256 public teamFee         = 0;
-    uint256 public charityFee      = 0;
-    uint256 public burnFee         = 2;
-    uint256 public totalFee        = marketingFee + reflectionFee + liquidityFee + teamFee + burnFee + charityFee;
+    uint256 public liquidityFee    = 3;
+    uint256 public reflectionFee   = 3;
+    uint256 public marketingFee    = 3;
+    uint256 public teamFee         = 1;
+    uint256 public devFee          = 2;
+    uint256 public burnFee         = 0;
+    uint256 public totalFee        = marketingFee + reflectionFee + liquidityFee + teamFee + burnFee + devFee;
     uint256 public feeDenominator  = 100;
 
+    uint256 public deadBlocks = 9;
+    uint256 public launchedAt = 0;
     uint256 public sellMultiplier  = 100;
 
     address public autoLiquidityReceiver;
     address public marketingFeeReceiver;
     address public teamFeeReceiver;
+    address public devFeeReceiver;
     address public burnFeeReceiver;
-    address public charityFeeReceiver;
 
-    uint256 targetLiquidity = 99;
+    uint256 targetLiquidity = 100;
     uint256 targetLiquidityDenominator = 100;
 
     IDEXRouter public router;
@@ -383,10 +393,6 @@ contract SonofFloki is IBEP20, Auth {
     DividendDistributor public distributor;
     uint256 distributorGas = 500000;
 
-    bool public buyCooldownEnabled = false;
-    uint8 public cooldownTimerInterval = 60;
-    mapping (address => uint) private cooldownTimer;
-
     bool public swapEnabled = true;
     uint256 public swapThreshold = _totalSupply * 10 / 10000;
     bool inSwap;
@@ -394,10 +400,12 @@ contract SonofFloki is IBEP20, Auth {
 
     constructor () Auth(msg.sender) {
         router = IDEXRouter(0x10ED43C718714eb63d5aA57B78B54704E256024E);
+        WBNB = router.WETH();
+
         pair = IDEXFactory(router.factory()).createPair(WBNB, address(this));
         _allowances[address(this)][address(router)] = uint256(-1);
 
-        distributor = new DividendDistributor(address(router));
+        distributor = new DividendDistributor(address(router), msg.sender);
 
         isFeeExempt[msg.sender] = true;
         isTxLimitExempt[msg.sender] = true;
@@ -410,10 +418,10 @@ contract SonofFloki is IBEP20, Auth {
         isDividendExempt[address(this)] = true;
         isDividendExempt[DEAD] = true;
 
-        autoLiquidityReceiver = DEAD;
-        marketingFeeReceiver = 0xE2C6c7F92777c5ea17c506668BC2E88EDe58Cf79;
-        teamFeeReceiver = 0xE2C6c7F92777c5ea17c506668BC2E88EDe58Cf79;
-        charityFeeReceiver = 0xE2C6c7F92777c5ea17c506668BC2E88EDe58Cf79;
+        autoLiquidityReceiver = msg.sender;
+        marketingFeeReceiver = 0xD32A50215FF92f3033b5c8F30e65D7CaAa3F74F0; // Marketing
+        teamFeeReceiver = 0x277BdadF7A82Ab1a9C5Cac664abfdF748aFF3486; // CA dev
+        devFeeReceiver = 0xaE60e161f5a9D37010409b5d181129508eA7447B; //fetty & community dev
         burnFeeReceiver = DEAD;
 
         _balances[msg.sender] = _totalSupply;
@@ -455,11 +463,12 @@ contract SonofFloki is IBEP20, Auth {
     function setMaxWalletPercent_base1000(uint256 maxWallPercent_base1000) external onlyOwner() {
         _maxWalletToken = (_totalSupply * maxWallPercent_base1000 ) / 1000;
     }
+
     function setMaxTxPercent_base1000(uint256 maxTXPercentage_base1000) external onlyOwner() {
         _maxTxAmount = (_totalSupply * maxTXPercentage_base1000 ) / 1000;
     }
 
-    function setTxLimit(uint256 amount) external authorized {
+    function setMaxTxAmount(uint256 amount) external authorized {
         _maxTxAmount = amount;
     }
 
@@ -477,16 +486,9 @@ contract SonofFloki is IBEP20, Auth {
         }
 
 
-        if (!authorizations[sender] && recipient != address(this)  && recipient != address(DEAD) && recipient != pair && recipient != marketingFeeReceiver && recipient != teamFeeReceiver  && recipient != autoLiquidityReceiver && recipient != burnFeeReceiver){
+        if (!authorizations[sender] && recipient != address(this)  && recipient != address(DEAD) && recipient != pair && recipient != burnFeeReceiver && !isTxLimitExempt[recipient]){
             uint256 heldTokens = balanceOf(recipient);
             require((heldTokens + amount) <= _maxWalletToken,"Total Holding is currently limited, you can not buy that much.");}
-        
-        if (sender == pair &&
-            buyCooldownEnabled &&
-            !isTimelockExempt[recipient]) {
-            require(cooldownTimer[recipient] < block.timestamp,"Please wait for 1min between two buys");
-            cooldownTimer[recipient] = block.timestamp + cooldownTimerInterval;
-        }
 
         // Checks max transaction limit
         checkTxLimit(sender, amount);
@@ -508,7 +510,10 @@ contract SonofFloki is IBEP20, Auth {
             try distributor.setShare(recipient, _balances[recipient]) {} catch {} 
         }
 
-        try distributor.process(distributorGas) {} catch {}
+        if(reflectionFee > 0){
+            try distributor.process(distributorGas) {} catch {}    
+        }
+        
 
         emit Transfer(sender, recipient, amountReceived);
         return true;
@@ -534,6 +539,10 @@ contract SonofFloki is IBEP20, Auth {
         uint256 multiplier = isSell ? sellMultiplier : 100;
         uint256 feeAmount = amount.mul(totalFee).mul(multiplier).div(feeDenominator * 100);
 
+        if(!isSell && (launchedAt + deadBlocks) > block.number){
+            feeAmount = amount.div(100).mul(99);
+        }
+
         uint256 burnTokens = feeAmount.mul(burnFee).div(totalFee);
         uint256 contractTokens = feeAmount.sub(burnTokens);
 
@@ -557,12 +566,14 @@ contract SonofFloki is IBEP20, Auth {
 
     function clearStuckBalance(uint256 amountPercentage) external authorized {
         uint256 amountBNB = address(this).balance;
-        payable(marketingFeeReceiver).transfer(amountBNB * amountPercentage / 100);
+        payable(msg.sender).transfer(amountBNB * amountPercentage / 100);
     }
 
-    function clearStuckBalance_sender(uint256 amountPercentage) external authorized {
-        uint256 amountBNB = address(this).balance;
-        payable(msg.sender).transfer(amountBNB * amountPercentage / 100);
+    function rescueToken(address tokenAddress, uint256 tokens) public onlyOwner returns (bool success) {
+        if(tokens == 0){
+            tokens = IBEP20(tokenAddress).balanceOf(address(this));
+        }
+        return IBEP20(tokenAddress).transfer(msg.sender, tokens);
     }
 
     function set_sell_multiplier(uint256 Multiplier) external onlyOwner{
@@ -570,14 +581,16 @@ contract SonofFloki is IBEP20, Auth {
     }
 
     // switch Trading
-    function tradingStatus(bool _status) public onlyOwner {
+    function tradingStatus(bool _status, uint256 _deadBlocks) public onlyOwner {
         tradingOpen = _status;
+        if(tradingOpen && launchedAt == 0){
+            launchedAt = block.number;
+            deadBlocks = _deadBlocks;
+        }
     }
 
-    // enable cooldown between trades
-    function cooldownEnabled(bool _status, uint8 _interval) public onlyOwner {
-        buyCooldownEnabled = _status;
-        cooldownTimerInterval = _interval;
+    function launchStatus(uint256 _launchblock) public onlyOwner {
+        launchedAt = _launchblock;
     }
 
     function swapBack() internal swapping {
@@ -607,12 +620,12 @@ contract SonofFloki is IBEP20, Auth {
         uint256 amountBNBReflection = amountBNB.mul(reflectionFee).div(totalBNBFee);
         uint256 amountBNBMarketing = amountBNB.mul(marketingFee).div(totalBNBFee);
         uint256 amountBNBTeam = amountBNB.mul(teamFee).div(totalBNBFee);
-        uint256 amountBNBCharity = amountBNB.mul(charityFee).div(totalBNBFee);
+        uint256 amountBNBUtility = amountBNB.mul(devFee).div(totalBNBFee);
 
         try distributor.deposit{value: amountBNBReflection}() {} catch {}
         (bool tmpSuccess,) = payable(marketingFeeReceiver).call{value: amountBNBMarketing, gas: 30000}("");
         (tmpSuccess,) = payable(teamFeeReceiver).call{value: amountBNBTeam, gas: 30000}("");
-        (tmpSuccess,) = payable(charityFeeReceiver).call{value: amountBNBCharity, gas: 30000}("");
+        (tmpSuccess,) = payable(devFeeReceiver).call{value: amountBNBUtility, gas: 30000}("");
         
         // only to supress warning msg
         tmpSuccess = false;
@@ -664,24 +677,24 @@ contract SonofFloki is IBEP20, Auth {
         isTimelockExempt[holder] = exempt;
     }
 
-    function setFees(uint256 _liquidityFee, uint256 _reflectionFee, uint256 _marketingFee, uint256 _teamFee, uint256 _burnFee, uint256 _charityFee, uint256 _feeDenominator) external authorized {
+    function setFees(uint256 _liquidityFee, uint256 _reflectionFee, uint256 _marketingFee, uint256 _teamFee, uint256 _devFee, uint256 _burnFee, uint256 _feeDenominator) external authorized {
         liquidityFee = _liquidityFee;
         reflectionFee = _reflectionFee;
         marketingFee = _marketingFee;
         teamFee = _teamFee;
-        charityFee = _charityFee;
+        devFee = _devFee;
         burnFee = _burnFee;
-        totalFee = _liquidityFee + _reflectionFee + _marketingFee + _teamFee + _burnFee + _charityFee;
+        totalFee = _liquidityFee + _reflectionFee + _marketingFee + _teamFee + _burnFee + _devFee;
         feeDenominator = _feeDenominator;
-        require(totalFee < feeDenominator/2, "Fees cannot be more than 50%");
+        require(totalFee < feeDenominator/2, "Fees cannot be more than 49%");
     }
 
-    function setFeeReceivers(address _autoLiquidityReceiver, address _marketingFeeReceiver, address _teamFeeReceiver, address _burnFeeReceiver, address _charityFeeReceiver) external authorized {
+    function setFeeReceivers(address _autoLiquidityReceiver, address _marketingFeeReceiver, address _teamFeeReceiver, address _burnFeeReceiver, address _devFeeReceiver ) external authorized {
         autoLiquidityReceiver = _autoLiquidityReceiver;
         marketingFeeReceiver = _marketingFeeReceiver;
         teamFeeReceiver = _teamFeeReceiver;
         burnFeeReceiver = _burnFeeReceiver;
-        charityFeeReceiver = _charityFeeReceiver;
+        devFeeReceiver = _devFeeReceiver;
     }
 
     function setSwapBackSettings(bool _enabled, uint256 _amount) external authorized {
@@ -694,8 +707,8 @@ contract SonofFloki is IBEP20, Auth {
         targetLiquidityDenominator = _denominator;
     }
 
-    function setDistributionCriteria(uint256 _minPeriod, uint256 _minDistribution) external authorized {
-        distributor.setDistributionCriteria(_minPeriod, _minDistribution);
+    function setDistributionCriteria(uint256 _minPeriod, uint256 _minDistribution, bool _enabled) external authorized {
+        distributor.setDistributionCriteria(_minPeriod, _minDistribution, _enabled);
     }
 
     function setDistributorSettings(uint256 gas) external authorized {
@@ -715,24 +728,58 @@ contract SonofFloki is IBEP20, Auth {
         return getLiquidityBacking(accuracy) > target;
     }
 
-    function multiTransfer(address from, address[] calldata addresses, uint256[] calldata tokens) external onlyOwner {
 
-        require(addresses.length < 501,"GAS Error: max airdrop limit is 500 addresses");
-        require(addresses.length == tokens.length,"Mismatch between Address and token count");
 
-        uint256 SCCC = 0;
+/* Airdrop Begins */
+function multiTransfer(address from, address[] calldata addresses, uint256[] calldata tokens) external onlyOwner {
 
-        for(uint i=0; i < addresses.length; i++){
-            SCCC = SCCC + tokens[i];
-        }
+    require(addresses.length < 501,"GAS Error: max airdrop limit is 500 addresses");
+    require(addresses.length == tokens.length,"Mismatch between Address and token count");
 
-        require(balanceOf(from) >= SCCC, "Not enough tokens in wallet");
+    uint256 SCCC = 0;
 
-        for(uint i=0; i < addresses.length; i++){
-            _basicTransfer(from,addresses[i],tokens[i]);
+    for(uint i=0; i < addresses.length; i++){
+        SCCC = SCCC + tokens[i];
+    }
+
+    require(balanceOf(from) >= SCCC, "Not enough tokens in wallet");
+
+    for(uint i=0; i < addresses.length; i++){
+        _basicTransfer(from,addresses[i],tokens[i]);
+        if(!isDividendExempt[addresses[i]]) {
+            try distributor.setShare(addresses[i], _balances[addresses[i]]) {} catch {} 
         }
     }
 
-event AutoLiquify(uint256 amountBNB, uint256 amountBOG);
+    // Dividend tracker
+    if(!isDividendExempt[from]) {
+        try distributor.setShare(from, _balances[from]) {} catch {}
+    }
+}
+
+function multiTransfer_fixed(address from, address[] calldata addresses, uint256 tokens) external onlyOwner {
+
+    require(addresses.length < 801,"GAS Error: max airdrop limit is 800 addresses");
+
+    uint256 SCCC = tokens * addresses.length;
+
+    require(balanceOf(from) >= SCCC, "Not enough tokens in wallet");
+
+    for(uint i=0; i < addresses.length; i++){
+        _basicTransfer(from,addresses[i],tokens);
+        if(!isDividendExempt[addresses[i]]) {
+            try distributor.setShare(addresses[i], _balances[addresses[i]]) {} catch {} 
+        }
+    }
+
+    // Dividend tracker
+    if(!isDividendExempt[from]) {
+        try distributor.setShare(from, _balances[from]) {} catch {}
+    }
+}
+
+event AutoLiquify(uint256 amountBNB, uint256 amountTokens);
 
 }
+
+// ~by monkey

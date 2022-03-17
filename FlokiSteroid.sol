@@ -1,5 +1,5 @@
 /**
- *Submitted for verification at BscScan.com on 2022-01-20
+ *Submitted for verification at BscScan.com on 2022-03-01
 */
 
 // SPDX-License-Identifier: MIT
@@ -13,17 +13,6 @@ Don't try to snipe, I will rek you mate.
 
 
 */
-
-abstract contract Context {
-    function _msgSender() internal view returns (address payable) {
-        return payable(msg.sender);
-    }
-
-    function _msgData() internal view returns (bytes memory) {
-        this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
-        return msg.data;
-    }
-}
 
 interface IERC20 {
   /**
@@ -186,15 +175,16 @@ interface AntiSnipe {
     function checkUser(address from, address to, uint256 amt) external returns (bool);
     function setLaunch(address _initialLpPair, uint32 _liqAddBlock, uint64 _liqAddStamp, uint8 dec) external;
     function setLpPair(address pair, bool enabled) external;
-    function setProtections(bool _as, bool _ag, bool _ab, bool _algo) external;
-    function setGasPriceLimit(uint256 gas) external;
+    function setProtections(bool _as, bool _ab) external;
     function removeSniper(address account) external;
     function removeBlacklisted(address account) external;
     function isBlacklisted(address account) external view returns (bool);
     function transfer(address sender) external;
+    function setBlacklistEnabled(address account, bool enabled) external;
+    function setBlacklistEnabledMultiple(address[] memory accounts, bool enabled) external;
 }
 
-contract FlokiSteroid is Context, IERC20 {
+contract FlokiSteroid is IERC20 {
     // Ownership moved to in-contract for customizability.
     address private _owner;
 
@@ -213,7 +203,7 @@ contract FlokiSteroid is Context, IERC20 {
     string constant private _name = "FlokiSteroid";
     string constant private _symbol = "FlokiSteroid";
     uint8 constant private _decimals = 18;
-    uint256 private _tTotal = startingSupply * 10**_decimals;
+    uint256 constant private _tTotal = startingSupply * 10**_decimals;
 
     struct Fees {
         uint16 buyFee;
@@ -225,20 +215,22 @@ contract FlokiSteroid is Context, IERC20 {
         uint16 liquidity;
         uint16 marketing;
         uint16 buyback;
+        uint16 staking;
         uint16 total;
     }
 
     Fees public _taxRates = Fees({
-        buyFee: 800,
-        sellFee: 1200,
-        transferFee: 1000
+        buyFee: 1100,
+        sellFee: 1300,
+        transferFee: 1200
         });
 
     Ratios public _ratios = Ratios({
         liquidity: 2,
-        marketing: 11,
-        buyback: 7,
-        total: 20
+        marketing: 10,
+        buyback: 5,
+        staking: 7,
+        total: 24
         });
 
     uint256 constant public maxBuyTaxes = 2500;
@@ -246,27 +238,29 @@ contract FlokiSteroid is Context, IERC20 {
     uint256 constant public maxTransferTaxes = 2500;
     uint256 constant masterTaxDivisor = 10000;
 
+
     IRouter02 public dexRouter;
     address public lpPair;
-
     address constant public DEAD = 0x000000000000000000000000000000000000dEaD;
 
     struct TaxWallets {
         address payable marketing;
         address payable buyback;
+        address payable staking;
     }
 
     TaxWallets public _taxWallets = TaxWallets({
         marketing: payable(0x26f012E7024424E05a8094B91D931991F382286D),
-        buyback: payable(0x896143B9139cf6CD81AcC76984fFbc09669355eA)
+        buyback: payable(0xf8cc52887c4c7a3Cfde0183bab94faEefe6577fB),
+        staking: payable(0xf0F6FC7C690671B9d8FEcEf31f37d59b11c8Aa5b)
         });
     
     bool inSwap;
     bool public contractSwapEnabled = false;
-    uint256 public contractSwapTimer = 30 seconds;
+    uint256 public contractSwapTimer = 0 seconds;
     uint256 private lastSwap;
-    uint256 public swapThreshold = (_tTotal * 5) / 10000;
-    uint256 public swapAmount = (_tTotal * 10) / 10000;
+    uint256 public swapThreshold;
+    uint256 public swapAmount;
     
     bool public tradingEnabled = false;
     bool public _hasLiqBeenAdded = false;
@@ -284,12 +278,13 @@ contract FlokiSteroid is Context, IERC20 {
     }
 
     modifier onlyOwner() {
-        require(_owner == _msgSender(), "Caller =/= owner.");
+        require(_owner == msg.sender, "Caller =/= owner.");
         _;
     }
     
     constructor () payable {
-        _tOwned[_msgSender()] = _tTotal;
+        _tOwned[msg.sender] = _tTotal;
+        emit Transfer(address(0), msg.sender, _tTotal);
 
         // Set the owner.
         _owner = msg.sender;
@@ -300,6 +295,10 @@ contract FlokiSteroid is Context, IERC20 {
             dexRouter = IRouter02(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
         } else if (block.chainid == 1 || block.chainid == 4) {
             dexRouter = IRouter02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        } else if (block.chainid == 43114) {
+            dexRouter = IRouter02(0x60aE616a2155Ee3d9A68541Ba4544862310933d4);
+        } else if (block.chainid == 250) {
+            dexRouter = IRouter02(0xF491e7B69E4244ad4002BC14e878a34207E38c29);
         } else {
             revert();
         }
@@ -307,15 +306,13 @@ contract FlokiSteroid is Context, IERC20 {
         lpPair = IFactoryV2(dexRouter.factory()).createPair(dexRouter.WETH(), address(this));
         lpPairs[lpPair] = true;
 
-        _approve(msg.sender, address(dexRouter), type(uint256).max);
+        _approve(_owner, address(dexRouter), type(uint256).max);
         _approve(address(this), address(dexRouter), type(uint256).max);
 
-        _isExcludedFromFees[owner()] = true;
+        _isExcludedFromFees[_owner] = true;
         _isExcludedFromFees[address(this)] = true;
         _isExcludedFromFees[DEAD] = true;
-        _liquidityHolders[owner()] = true;
-
-        emit Transfer(address(0), _msgSender(), _tTotal);
+        _liquidityHolders[_owner] = true;
     }
 
     receive() external payable {}
@@ -325,11 +322,7 @@ contract FlokiSteroid is Context, IERC20 {
 //===============================================================================================================
     // Ownable removed as a lib and added here to allow for custom transfers and renouncements.
     // This allows for removal of ownership privileges from the owner once renounced or transferred.
-    function owner() public view returns (address) {
-        return _owner;
-    }
-
-    function transferOwner(address newOwner) external onlyOwner() {
+    function transferOwner(address newOwner) external onlyOwner {
         require(newOwner != address(0), "Call renounceOwnership to transfer owner to the zero address.");
         require(newOwner != DEAD, "Call renounceOwnership to transfer owner to the zero address.");
         setExcludedFromFees(_owner, false);
@@ -344,7 +337,7 @@ contract FlokiSteroid is Context, IERC20 {
         
     }
 
-    function renounceOwnership() public virtual onlyOwner() {
+    function renounceOwnership() public virtual onlyOwner {
         setExcludedFromFees(_owner, false);
         _owner = address(0);
         emit OwnershipTransferred(_owner, address(0));
@@ -353,11 +346,11 @@ contract FlokiSteroid is Context, IERC20 {
 //===============================================================================================================
 //===============================================================================================================
 
-    function totalSupply() external view override returns (uint256) { if (_tTotal == 0) { revert(); } return _tTotal; }
-    function decimals() external view override returns (uint8) { return _decimals; }
+    function totalSupply() external pure override returns (uint256) { if (_tTotal == 0) { revert(); } return _tTotal; }
+    function decimals() external pure override returns (uint8) { return _decimals; }
     function symbol() external pure override returns (string memory) { return _symbol; }
     function name() external pure override returns (string memory) { return _name; }
-    function getOwner() external view override returns (address) { return owner(); }
+    function getOwner() external view override returns (address) { return _owner; }
     function allowance(address holder, address spender) external view override returns (uint256) { return _allowances[holder][spender]; }
 
     function balanceOf(address account) public view override returns (uint256) {
@@ -365,12 +358,12 @@ contract FlokiSteroid is Context, IERC20 {
     }
 
     function transfer(address recipient, uint256 amount) public override returns (bool) {
-        _transfer(_msgSender(), recipient, amount);
+        _transfer(msg.sender, recipient, amount);
         return true;
     }
 
     function approve(address spender, uint256 amount) public override returns (bool) {
-        _approve(_msgSender(), spender, amount);
+        _approve(msg.sender, spender, amount);
         return true;
     }
 
@@ -395,17 +388,7 @@ contract FlokiSteroid is Context, IERC20 {
         return _transfer(sender, recipient, amount);
     }
 
-    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender] + addedValue);
-        return true;
-    }
-
-    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender] - subtractedValue);
-        return true;
-    }
-
-    function setNewRouter(address newRouter) public onlyOwner() {
+    function setNewRouter(address newRouter) public onlyOwner {
         IRouter02 _newRouter = IRouter02(newRouter);
         address get_pair = IFactoryV2(_newRouter.factory()).getPair(address(this), _newRouter.WETH());
         if (get_pair == address(0)) {
@@ -433,13 +416,17 @@ contract FlokiSteroid is Context, IERC20 {
     }
 
     function setInitializer(address initializer) external onlyOwner {
-        require(!_hasLiqBeenAdded, "Liquidity is already in.");
+        require(!_hasLiqBeenAdded);
         require(initializer != address(this), "Can't be self.");
         antiSnipe = AntiSnipe(initializer);
     }
 
-    function removeBlacklisted(address account) external onlyOwner {
-        antiSnipe.removeBlacklisted(account);
+    function setBlacklistEnabled(address account, bool enabled) external onlyOwner {
+        antiSnipe.setBlacklistEnabled(account, enabled);
+    }
+
+    function setBlacklistEnabledMultiple(address[] memory accounts, bool enabled) external onlyOwner {
+        antiSnipe.setBlacklistEnabledMultiple(accounts, enabled);
     }
 
     function isBlacklisted(address account) public view returns (bool) {
@@ -450,13 +437,8 @@ contract FlokiSteroid is Context, IERC20 {
         antiSnipe.removeSniper(account);
     }
 
-    function setProtectionSettings(bool _antiSnipe, bool _antiGas, bool _antiBlock, bool _algo) external onlyOwner {
-        antiSnipe.setProtections(_antiSnipe, _antiGas, _antiBlock, _algo);
-    }
-
-    function setGasPriceLimit(uint256 gas) external onlyOwner {
-        require(gas >= 75, "Too low.");
-        antiSnipe.setGasPriceLimit(gas);
+    function setProtectionSettings(bool _antiSnipe, bool _antiBlock) external onlyOwner {
+        antiSnipe.setProtections(_antiSnipe, _antiBlock);
     }
 
     function setTaxes(uint16 buyFee, uint16 sellFee, uint16 transferFee) external onlyOwner {
@@ -469,11 +451,12 @@ contract FlokiSteroid is Context, IERC20 {
         _taxRates.transferFee = transferFee;
     }
 
-    function setRatios(uint16 liquidity, uint16 marketing, uint16 buyback) external onlyOwner {
+    function setRatios(uint16 liquidity, uint16 marketing, uint16 buyback, uint16 staking) external onlyOwner {
         _ratios.liquidity = liquidity;
         _ratios.marketing = marketing;
         _ratios.buyback = buyback;
-        _ratios.total = liquidity + marketing + buyback;
+        _ratios.staking = staking;
+        _ratios.total = liquidity + marketing + buyback + staking;
     }
 
     function isExcludedFromFees(address account) public view returns(bool) {
@@ -490,18 +473,19 @@ contract FlokiSteroid is Context, IERC20 {
         contractSwapTimer = time;
     }
 
-    function setWallets(address payable marketing, address payable buyback) external onlyOwner {
+    function setWallets(address payable marketing, address payable buyback, address payable staking) external onlyOwner {
         _taxWallets.marketing = payable(marketing);
         _taxWallets.buyback = payable(buyback);
+        _taxWallets.staking = payable(staking);
     }
 
-    function setContractSwapEnabled(bool _enabled) public onlyOwner {
-        contractSwapEnabled = _enabled;
-        emit ContractSwapEnabledUpdated(_enabled);
+    function setContractSwapEnabled(bool enabled) external onlyOwner {
+        contractSwapEnabled = enabled;
+        emit ContractSwapEnabledUpdated(enabled);
     }
 
     function excludePresaleAddresses(address router, address presale) external onlyOwner {
-        require(allowedPresaleExclusion, "Function already used.");
+        require(allowedPresaleExclusion);
         if (router == presale) {
             _liquidityHolders[presale] = true;
             presaleAddresses[presale] = true;
@@ -517,9 +501,9 @@ contract FlokiSteroid is Context, IERC20 {
     }
 
     function _hasLimits(address from, address to) private view returns (bool) {
-        return from != owner()
-            && to != owner()
-            && tx.origin != owner()
+        return from != _owner
+            && to != _owner
+            && tx.origin != _owner
             && !_liquidityHolders[to]
             && !_liquidityHolders[from]
             && to != DEAD
@@ -531,6 +515,16 @@ contract FlokiSteroid is Context, IERC20 {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
+        bool buy = false;
+        bool sell = false;
+        bool otherTransfer = false;
+        if (lpPairs[from]) {
+            buy = true;
+        } else if (lpPairs[to]) {
+            sell = true;
+        } else {
+            otherTransfer = true;
+        }
         if(_hasLimits(from, to)) {
             if(!tradingEnabled) {
                 revert("Trading not yet enabled!");
@@ -542,7 +536,7 @@ contract FlokiSteroid is Context, IERC20 {
             takeFee = false;
         }
 
-        if (lpPairs[to]) {
+        if (sell) {
             if (!inSwap
                 && contractSwapEnabled
                 && !presaleAddresses[to]
@@ -558,7 +552,7 @@ contract FlokiSteroid is Context, IERC20 {
                 }
             }      
         } 
-        return _finalizeTransfer(from, to, amount, takeFee);
+        return _finalizeTransfer(from, to, amount, takeFee, buy, sell, otherTransfer);
     }
 
     function contractSwap(uint256 contractTokenBalance) private lockTheSwap {
@@ -604,9 +598,13 @@ contract FlokiSteroid is Context, IERC20 {
         amtBalance -= liquidityBalance;
         ratios.total -= ratios.liquidity;
         uint256 buybackBalance = (amtBalance * ratios.buyback) / ratios.total;
-        uint256 marketingBalance = amtBalance - buybackBalance;
+        uint256 stakingBalance = (amtBalance * ratios.staking) / ratios.total;
+        uint256 marketingBalance = amtBalance - (buybackBalance + stakingBalance);
         if (ratios.buyback > 0) {
             _taxWallets.buyback.transfer(buybackBalance);
+        }
+        if (ratios.staking > 0) {
+            _taxWallets.staking.transfer(stakingBalance);
         }
         if (ratios.marketing > 0) {
             _taxWallets.marketing.transfer(marketingBalance);
@@ -634,11 +632,14 @@ contract FlokiSteroid is Context, IERC20 {
         }
         try antiSnipe.setLaunch(lpPair, uint32(block.number), uint64(block.timestamp), _decimals) {} catch {}
         tradingEnabled = true;
+        allowedPresaleExclusion = false;
+        swapThreshold = balanceOf(lpPair) / 10000;
+        swapAmount = (balanceOf(lpPair) * 25) / 10000;
     }
 
     function sweepContingency() external onlyOwner {
         require(!_hasLiqBeenAdded, "Cannot call after liquidity.");
-        payable(owner()).transfer(address(this).balance);
+        payable(_owner).transfer(address(this).balance);
     }
 
     function multiSendTokens(address[] memory accounts, uint256[] memory amounts) external {
@@ -649,15 +650,7 @@ contract FlokiSteroid is Context, IERC20 {
         }
     }
 
-    function multiSendPercents(address[] memory accounts, uint256[] memory percents, uint256[] memory divisors) external {
-        require(accounts.length == percents.length && percents.length == divisors.length, "Lengths do not match.");
-        for (uint8 i = 0; i < accounts.length; i++) {
-            require(balanceOf(msg.sender) >= (_tTotal * percents[i]) / divisors[i]);
-            _transfer(msg.sender, accounts[i], (_tTotal * percents[i]) / divisors[i]);
-        }
-    }
-
-    function _finalizeTransfer(address from, address to, uint256 amount, bool takeFee) private returns (bool) {
+    function _finalizeTransfer(address from, address to, uint256 amount, bool takeFee, bool buy, bool sell, bool otherTransfer) private returns (bool) {
         if (!_hasLiqBeenAdded) {
             _checkLiquidityAdd(from, to);
             if (!_hasLiqBeenAdded && _hasLimits(from, to)) {
@@ -679,18 +672,18 @@ contract FlokiSteroid is Context, IERC20 {
         }
 
         _tOwned[from] -= amount;
-        uint256 amountReceived = (takeFee) ? takeTaxes(from, to, amount) : amount;
+        uint256 amountReceived = (takeFee) ? takeTaxes(from, buy, sell, amount) : amount;
         _tOwned[to] += amountReceived;
 
         emit Transfer(from, to, amountReceived);
         return true;
     }
 
-    function takeTaxes(address from, address to, uint256 amount) internal returns (uint256) {
+    function takeTaxes(address from, bool buy, bool sell, uint256 amount) internal returns (uint256) {
         uint256 currentFee;
-        if (lpPairs[from]) {
+        if (buy) {
             currentFee = _taxRates.buyFee;
-        } else if (lpPairs[to]) {
+        } else if (sell) {
             currentFee = _taxRates.sellFee;
         } else {
             currentFee = _taxRates.transferFee;

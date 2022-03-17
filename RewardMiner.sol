@@ -1,746 +1,1052 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
-
-
-
+import './storageVestedAddresses.sol';
 /**
  * SAFEMATH LIBRARY
  */
 library SafeMath {
-    
-    function tryAdd(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            uint256 c = a + b;
-            if (c < a) return (false, 0);
-            return (true, c);
-        }
+  function tryAdd(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+    unchecked {
+      uint256 c = a + b;
+      if (c < a) return (false, 0);
+      return (true, c);
     }
+  }
 
-    function trySub(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            if (b > a) return (false, 0);
-            return (true, a - b);
-        }
+  function trySub(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+    unchecked {
+      if (b > a) return (false, 0);
+      return (true, a - b);
     }
+  }
 
-    function tryMul(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-            // benefit is lost if 'b' is also tested.
-            // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
-            if (a == 0) return (true, 0);
-            uint256 c = a * b;
-            if (c / a != b) return (false, 0);
-            return (true, c);
-        }
+  function tryMul(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+    unchecked {
+      // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
+      // benefit is lost if 'b' is also tested.
+      // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
+      if (a == 0) return (true, 0);
+      uint256 c = a * b;
+      if (c / a != b) return (false, 0);
+      return (true, c);
     }
+  }
 
-    function tryDiv(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            if (b == 0) return (false, 0);
-            return (true, a / b);
-        }
+  function tryDiv(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+    unchecked {
+      if (b == 0) return (false, 0);
+      return (true, a / b);
     }
+  }
 
-    function tryMod(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            if (b == 0) return (false, 0);
-            return (true, a % b);
-        }
+  function tryMod(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+    unchecked {
+      if (b == 0) return (false, 0);
+      return (true, a % b);
     }
+  }
 
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a + b;
-    }
+  function add(uint256 a, uint256 b) internal pure returns (uint256) {
+    return a + b;
+  }
 
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a - b;
-    }
+  function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+    return a - b;
+  }
 
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a * b;
-    }
+  function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+    return a * b;
+  }
 
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a / b;
-    }
+  function div(uint256 a, uint256 b) internal pure returns (uint256) {
+    return a / b;
+  }
 
-    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a % b;
-    }
+  function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+    return a % b;
+  }
 
-    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        unchecked {
-            require(b <= a, errorMessage);
-            return a - b;
-        }
+  function sub(
+    uint256 a,
+    uint256 b,
+    string memory errorMessage
+  ) internal pure returns (uint256) {
+    unchecked {
+      require(b <= a, errorMessage);
+      return a - b;
     }
+  }
 
-    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        unchecked {
-            require(b > 0, errorMessage);
-            return a / b;
-        }
+  function div(
+    uint256 a,
+    uint256 b,
+    string memory errorMessage
+  ) internal pure returns (uint256) {
+    unchecked {
+      require(b > 0, errorMessage);
+      return a / b;
     }
+  }
 
-    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        unchecked {
-            require(b > 0, errorMessage);
-            return a % b;
-        }
+  function mod(
+    uint256 a,
+    uint256 b,
+    string memory errorMessage
+  ) internal pure returns (uint256) {
+    unchecked {
+      require(b > 0, errorMessage);
+      return a % b;
     }
+  }
 }
 
 interface IBEP20 {
-    function totalSupply() external view returns (uint256);
-    function decimals() external view returns (uint8);
-    function symbol() external view returns (string memory);
-    function name() external view returns (string memory);
-    function getOwner() external view returns (address);
-    function balanceOf(address account) external view returns (uint256);
-    function transfer(address recipient, uint256 amount) external returns (bool);
-    function allowance(address _owner, address spender) external view returns (uint256);
-    function approve(address spender, uint256 amount) external returns (bool);
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+  function totalSupply() external view returns (uint256);
+
+  function decimals() external view returns (uint8);
+
+  function symbol() external view returns (string memory);
+
+  function name() external view returns (string memory);
+
+  function balanceOf(address account) external view returns (uint256);
+
+  function transfer(address recipient, uint256 amount) external returns (bool);
+
+  function allowance(address _owner, address spender) external view returns (uint256);
+
+  function approve(address spender, uint256 amount) external returns (bool);
+
+  function transferFrom(
+    address sender,
+    address recipient,
+    uint256 amount
+  ) external returns (bool);
+
+  event Transfer(address indexed from, address indexed to, uint256 value);
+  event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-abstract contract Auth {
-    address internal owner;
-    mapping (address => bool) internal authorizations;
+abstract contract Context {
+  function _msgSender() internal view virtual returns (address) {
+    return msg.sender;
+  }
 
-    constructor(address _owner) {
-        owner = _owner;
-        authorizations[_owner] = true;
-    }
+  function _msgData() internal view virtual returns (bytes memory) {
+    this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
+    return msg.data;
+  }
+}
 
-    /**
-     * Function modifier to require caller to be contract owner
-     */
-    modifier onlyOwner() {
-        require(isOwner(msg.sender), "!OWNER"); _;
-    }
+/**
+ * @dev Contract module which provides a basic access control mechanism, where
+ * there is an account (an owner) that can be granted exclusive access to
+ * specific functions.
+ *
+ * By default, the owner account will be the one that deploys the contract. This
+ * can later be changed with {transferOwnership}.
+ *
+ * This module is used through inheritance. It will make available the modifier
+ * `onlyOwner`, which can be applied to your functions to restrict their use to
+ * the owner.
+ */
+contract Ownable is Context {
+  address private _owner;
+  address private _previousOwner;
+  uint256 private _lockTime;
 
-    /**
-     * Function modifier to require caller to be authorized
-     */
-    modifier authorized() {
-        require(isAuthorized(msg.sender), "!AUTHORIZED"); _;
-    }
+  event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
-    /**
-     * Authorize address. Owner only
-     */
-    function authorize(address adr) public onlyOwner {
-        authorizations[adr] = true;
-    }
+  /**
+   * @dev Initializes the contract setting the deployer as the initial owner.
+   */
+  constructor() {
+    address msgSender = _msgSender();
+    _owner = msgSender;
+    emit OwnershipTransferred(address(0), msgSender);
+  }
 
-    /**
-     * Remove address' authorization. Owner only
-     */
-    function unauthorize(address adr) public onlyOwner {
-        authorizations[adr] = false;
-    }
+  /**
+   * @dev Returns the address of the current owner.
+   */
+  function owner() public view returns (address) {
+    return _owner;
+  }
 
-    /**
-     * Check if address is owner
-     */
-    function isOwner(address account) public view returns (bool) {
-        return account == owner;
-    }
+  /**
+   * @dev Throws if called by any account other than the owner.
+   */
+  modifier onlyOwner() {
+    require(_owner == _msgSender(), 'Ownable: caller is not the owner');
+    _;
+  }
 
-    /**
-     * Return address' authorization status
-     */
-    function isAuthorized(address adr) public view returns (bool) {
-        return authorizations[adr];
-    }
+  /**
+   * @dev Leaves the contract without owner. It will not be possible to call
+   * `onlyOwner` functions anymore. Can only be called by the current owner.
+   *
+   * NOTE: Renouncing ownership will leave the contract without an owner,
+   * thereby removing any functionality that is only available to the owner.
+   */
+  function renounceOwnership() public virtual onlyOwner {
+    emit OwnershipTransferred(_owner, address(0));
+    _owner = address(0);
+    _previousOwner = address(0); // vulnerability fix
+  }
 
-    /**
-     * Transfer ownership to new address. Caller must be owner. Leaves old owner authorized
-     */
-    function transferOwnership(address payable adr) public onlyOwner {
-        owner = adr;
-        authorizations[adr] = true;
-        emit OwnershipTransferred(adr);
-    }
+  /**
+   * @dev Transfers ownership of the contract to a new account (`newOwner`).
+   * Can only be called by the current owner.
+   */
+  function transferOwnership(address newOwner) public virtual onlyOwner {
+    require(newOwner != address(0), 'Ownable: new owner is the zero address');
+    emit OwnershipTransferred(_owner, newOwner);
+    _owner = newOwner;
+  }
 
-    event OwnershipTransferred(address owner);
+  function getUnlockTime() public view returns (uint256) {
+    return _lockTime;
+  }
+
 }
 
 interface IDEXFactory {
-    function createPair(address tokenA, address tokenB) external returns (address pair);
+  function createPair(address tokenA, address tokenB) external returns (address pair);
 }
 
 interface IDEXRouter {
-    function factory() external pure returns (address);
-    function WETH() external pure returns (address);
+  function factory() external pure returns (address);
 
-    function addLiquidity(
-        address tokenA,
-        address tokenB,
-        uint amountADesired,
-        uint amountBDesired,
-        uint amountAMin,
-        uint amountBMin,
-        address to,
-        uint deadline
-    ) external returns (uint amountA, uint amountB, uint liquidity);
+  function WETH() external pure returns (address);
 
-    function addLiquidityETH(
-        address token,
-        uint amountTokenDesired,
-        uint amountTokenMin,
-        uint amountETHMin,
-        address to,
-        uint deadline
-    ) external payable returns (uint amountToken, uint amountETH, uint liquidity);
+  function addLiquidity(
+    address tokenA,
+    address tokenB,
+    uint256 amountADesired,
+    uint256 amountBDesired,
+    uint256 amountAMin,
+    uint256 amountBMin,
+    address to,
+    uint256 deadline
+  )
+    external
+    returns (
+      uint256 amountA,
+      uint256 amountB,
+      uint256 liquidity
+    );
 
-    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
-        uint amountIn,
-        uint amountOutMin,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external;
+  function addLiquidityETH(
+    address token,
+    uint256 amountTokenDesired,
+    uint256 amountTokenMin,
+    uint256 amountETHMin,
+    address to,
+    uint256 deadline
+  )
+    external
+    payable
+    returns (
+      uint256 amountToken,
+      uint256 amountETH,
+      uint256 liquidity
+    );
 
-    function swapExactETHForTokensSupportingFeeOnTransferTokens(
-        uint amountOutMin,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external payable;
+  function swapExactTokensForTokensSupportingFeeOnTransferTokens(
+    uint256 amountIn,
+    uint256 amountOutMin,
+    address[] calldata path,
+    address to,
+    uint256 deadline
+  ) external;
 
-    function swapExactTokensForETHSupportingFeeOnTransferTokens(
-        uint amountIn,
-        uint amountOutMin,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external;
+  function swapExactETHForTokensSupportingFeeOnTransferTokens(
+    uint256 amountOutMin,
+    address[] calldata path,
+    address to,
+    uint256 deadline
+  ) external payable;
+
+  function swapExactTokensForETHSupportingFeeOnTransferTokens(
+    uint256 amountIn,
+    uint256 amountOutMin,
+    address[] calldata path,
+    address to,
+    uint256 deadline
+  ) external;
 }
 
 interface IDividendDistributor {
-    function setDistributionCriteria(uint256 _minPeriod, uint256 _minDistribution) external;
-    function setShare(address shareholder, uint256 amount) external;
-    function deposit() external payable;
-    function process(uint256 gas) external;
+  function setDistributionCriteria(uint256 _minPeriod, uint256 _minDistribution) external;
+
+  function setShare(address shareholder, uint256 amount) external;
+
+  function deposit() external payable;
+
+  function process(uint256 gas) external;
 }
 
 contract DividendDistributor is IDividendDistributor {
-    using SafeMath for uint256;
+  using SafeMath for uint256;
 
-    address _token;
+  address _token;
 
-    struct Share {
-        uint256 amount;
-        uint256 totalExcluded;
-        uint256 totalRealised;
+  struct Share {
+    uint256 amount;
+    uint256 totalExcluded;
+    uint256 totalRealised;
+  }
+
+  IBEP20 constant BUSD = IBEP20(0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56);
+  address constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
+  IDEXRouter immutable router;
+
+  address[] shareholders;
+  mapping(address => uint256) shareholderIndexes;
+  mapping(address => uint256) shareholderClaims;
+
+  mapping(address => Share) public shares;
+
+  uint256 public totalShares;
+  uint256 public totalDividends;
+  uint256 public totalDistributed;
+  uint256 public dividendsPerShare;
+  uint256 public dividendsPerShareAccuracyFactor = 10**36;
+
+  uint256 public minPeriod = 1 hours;
+  uint256 public minDistribution = 1 * (10**18);
+
+  uint256 currentIndex;
+
+  bool initialized;
+  modifier initialization() {
+    require(!initialized, 'non init');
+    _;
+    initialized = true;
+  }
+
+  modifier onlyToken() {
+    require(msg.sender == _token, 'unauth');
+    _;
+  }
+
+  constructor(IDEXRouter _router) {
+    router = _router;
+    _token = msg.sender;
+  }
+
+  function setDistributionCriteria(uint256 _minPeriod, uint256 _minDistribution) external override onlyToken {
+    minPeriod = _minPeriod;
+    minDistribution = _minDistribution;
+  }
+
+  function setShare(address shareholder, uint256 amount) external override onlyToken {
+    if (shares[shareholder].amount > 0) {
+      distributeDividend(shareholder);
     }
 
-    IBEP20 BUSD = IBEP20(0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56);
-    address WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
-    IDEXRouter router;
-
-    address[] shareholders;
-    mapping (address => uint256) shareholderIndexes;
-    mapping (address => uint256) shareholderClaims;
-
-    mapping (address => Share) public shares;
-
-    uint256 public totalShares;
-    uint256 public totalDividends;
-    uint256 public totalDistributed;
-    uint256 public dividendsPerShare;
-    uint256 public dividendsPerShareAccuracyFactor = 10 ** 36;
-
-    uint256 public minPeriod = 1 hours;
-    uint256 public minDistribution = 1 * (10 ** 18);
-
-    uint256 currentIndex;
-
-    bool initialized;
-    modifier initialization() {
-        require(!initialized);
-        _;
-        initialized = true;
+    if (amount > 0 && shares[shareholder].amount == 0) {
+      addShareholder(shareholder);
+    } else if (amount == 0 && shares[shareholder].amount > 0) {
+      removeShareholder(shareholder);
     }
 
-    modifier onlyToken() {
-        require(msg.sender == _token); _;
+    totalShares = totalShares.sub(shares[shareholder].amount).add(amount);
+    shares[shareholder].amount = amount;
+    shares[shareholder].totalExcluded = getCumulativeDividends(shares[shareholder].amount);
+  }
+
+  function deposit() external payable override onlyToken {
+    uint256 balanceBefore = BUSD.balanceOf(address(this));
+
+    address[] memory path = new address[](2);
+    path[0] = WBNB;
+    path[1] = address(BUSD);
+
+    router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: msg.value}(0, path, address(this), block.timestamp);
+
+    uint256 amount = BUSD.balanceOf(address(this)).sub(balanceBefore);
+
+    totalDividends = totalDividends.add(amount);
+    dividendsPerShare = dividendsPerShare.add(dividendsPerShareAccuracyFactor.mul(amount).div(totalShares));
+  }
+
+  function process(uint256 gas) external override onlyToken {
+    uint256 shareholderCount = shareholders.length;
+
+    if (shareholderCount == 0) {
+      return;
     }
 
-    constructor (address _router) {
-        router = _router != address(0)
-        ? IDEXRouter(_router)
-        : IDEXRouter(0x10ED43C718714eb63d5aA57B78B54704E256024E);
-        _token = msg.sender;
+    uint256 gasUsed = 0;
+    uint256 gasLeft = gasleft();
+
+    uint256 iterations = 0;
+
+    while (gasUsed < gas && iterations < shareholderCount) {
+      if (currentIndex >= shareholderCount) {
+        currentIndex = 0;
+      }
+
+      if (shouldDistribute(shareholders[currentIndex])) {
+        distributeDividend(shareholders[currentIndex]);
+      }
+
+      gasUsed = gasUsed.add(gasLeft.sub(gasleft()));
+      gasLeft = gasleft();
+      currentIndex++;
+      iterations++;
+    }
+  }
+
+  function shouldDistribute(address shareholder) internal view returns (bool) {
+    return shareholderClaims[shareholder] + minPeriod < block.timestamp && getUnpaidEarnings(shareholder) > minDistribution;
+  }
+
+  function distributeDividend(address shareholder) internal {
+    if (shares[shareholder].amount == 0) {
+      return;
     }
 
-    function setDistributionCriteria(uint256 _minPeriod, uint256 _minDistribution) external override onlyToken {
-        minPeriod = _minPeriod;
-        minDistribution = _minDistribution;
+    uint256 amount = getUnpaidEarnings(shareholder);
+
+    if (amount > 0) {
+      totalDistributed = totalDistributed.add(amount);
+      BUSD.transfer(shareholder, amount);
+      shareholderClaims[shareholder] = block.timestamp;
+      shares[shareholder].totalRealised = shares[shareholder].totalRealised.add(amount);
+      shares[shareholder].totalExcluded = getCumulativeDividends(shares[shareholder].amount);
+    }
+  }
+
+  function claimDividend() external {
+    distributeDividend(msg.sender);
+  }
+
+  function getUnpaidEarnings(address shareholder) public view returns (uint256) {
+    if (shares[shareholder].amount == 0) {
+      return 0;
     }
 
-    function setShare(address shareholder, uint256 amount) external override onlyToken {
-        if(shares[shareholder].amount > 0){
-            distributeDividend(shareholder);
-        }
+    uint256 shareholderTotalDividends = getCumulativeDividends(shares[shareholder].amount);
+    uint256 shareholderTotalExcluded = shares[shareholder].totalExcluded;
 
-        if(amount > 0 && shares[shareholder].amount == 0){
-            addShareholder(shareholder);
-        }else if(amount == 0 && shares[shareholder].amount > 0){
-            removeShareholder(shareholder);
-        }
-
-        totalShares = totalShares.sub(shares[shareholder].amount).add(amount);
-        shares[shareholder].amount = amount;
-        shares[shareholder].totalExcluded = getCumulativeDividends(shares[shareholder].amount);
+    if (shareholderTotalDividends <= shareholderTotalExcluded) {
+      return 0;
     }
 
-    function deposit() external payable override onlyToken {
-        uint256 balanceBefore = BUSD.balanceOf(address(this));
+    return shareholderTotalDividends.sub(shareholderTotalExcluded);
+  }
 
-        address[] memory path = new address[](2);
-        path[0] = WBNB;
-        path[1] = address(BUSD);
+  function getCumulativeDividends(uint256 share) internal view returns (uint256) {
+    return share.mul(dividendsPerShare).div(dividendsPerShareAccuracyFactor);
+  }
 
-        router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: msg.value}(
-            0,
-            path,
-            address(this),
-            block.timestamp
-        );
+  function addShareholder(address shareholder) internal {
+    shareholderIndexes[shareholder] = shareholders.length;
+    shareholders.push(shareholder);
+  }
 
-        uint256 amount = BUSD.balanceOf(address(this)).sub(balanceBefore);
-
-        totalDividends = totalDividends.add(amount);
-        dividendsPerShare = dividendsPerShare.add(dividendsPerShareAccuracyFactor.mul(amount).div(totalShares));
-    }
-
-    function process(uint256 gas) external override onlyToken {
-        uint256 shareholderCount = shareholders.length;
-
-        if(shareholderCount == 0) { return; }
-
-        uint256 gasUsed = 0;
-        uint256 gasLeft = gasleft();
-
-        uint256 iterations = 0;
-
-        while(gasUsed < gas && iterations < shareholderCount) {
-            if(currentIndex >= shareholderCount){
-                currentIndex = 0;
-            }
-
-            if(shouldDistribute(shareholders[currentIndex])){
-                distributeDividend(shareholders[currentIndex]);
-            }
-
-            gasUsed = gasUsed.add(gasLeft.sub(gasleft()));
-            gasLeft = gasleft();
-            currentIndex++;
-            iterations++;
-        }
-    }
-
-    function shouldDistribute(address shareholder) internal view returns (bool) {
-        return shareholderClaims[shareholder] + minPeriod < block.timestamp
-        && getUnpaidEarnings(shareholder) > minDistribution;
-    }
-
-    function distributeDividend(address shareholder) internal {
-        if(shares[shareholder].amount == 0){ return; }
-
-        uint256 amount = getUnpaidEarnings(shareholder);
-        if(amount > 0){
-            totalDistributed = totalDistributed.add(amount);
-            BUSD.transfer(shareholder, amount);
-            shareholderClaims[shareholder] = block.timestamp;
-            shares[shareholder].totalRealised = shares[shareholder].totalRealised.add(amount);
-            shares[shareholder].totalExcluded = getCumulativeDividends(shares[shareholder].amount);
-        }
-    }
-
-    function claimDividend() external {
-        distributeDividend(msg.sender);
-    }
-
-    function getUnpaidEarnings(address shareholder) public view returns (uint256) {
-        if(shares[shareholder].amount == 0){ return 0; }
-
-        uint256 shareholderTotalDividends = getCumulativeDividends(shares[shareholder].amount);
-        uint256 shareholderTotalExcluded = shares[shareholder].totalExcluded;
-
-        if(shareholderTotalDividends <= shareholderTotalExcluded){ return 0; }
-
-        return shareholderTotalDividends.sub(shareholderTotalExcluded);
-    }
-
-    function getCumulativeDividends(uint256 share) internal view returns (uint256) {
-        return share.mul(dividendsPerShare).div(dividendsPerShareAccuracyFactor);
-    }
-
-    function addShareholder(address shareholder) internal {
-        shareholderIndexes[shareholder] = shareholders.length;
-        shareholders.push(shareholder);
-    }
-
-    function removeShareholder(address shareholder) internal {
-        shareholders[shareholderIndexes[shareholder]] = shareholders[shareholders.length-1];
-        shareholderIndexes[shareholders[shareholders.length-1]] = shareholderIndexes[shareholder];
-        shareholders.pop();
-    }
+  function removeShareholder(address shareholder) internal {
+    shareholders[shareholderIndexes[shareholder]] = shareholders[shareholders.length - 1];
+    shareholderIndexes[shareholders[shareholders.length - 1]] = shareholderIndexes[shareholder];
+    shareholders.pop();
+  }
 }
 
-contract RMC is IBEP20, Auth {
-    using SafeMath for uint256;
 
-    uint256 public constant MASK = type(uint128).max;
-    address BUSD = 0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56;
-    address public WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
-    address DEAD = 0x000000000000000000000000000000000000dEaD;
-    address ZERO = 0x0000000000000000000000000000000000000000;
-    address DEAD_NON_CHECKSUM = 0x000000000000000000000000000000000000dEaD;
 
-    string constant _name = "Reward Miner Coin";
-    string constant _symbol = "RMC";
-    uint8 constant _decimals = 9;
+contract RMC is IBEP20, Ownable {
+  using SafeMath for uint256;
 
-    uint256 _totalSupply = 1_000_000_000_000_000 * (10 ** _decimals);
-    uint256 public _maxTxAmount = _totalSupply.div(400); // 0.25%
+  event AutoLiquify(uint256 amountBNB, uint256 amountBOG);
+  event BuybackMultiplierActive(uint256 duration);
+  event Error(string reason);
 
-    mapping (address => uint256) _balances;
-    mapping (address => mapping (address => uint256)) _allowances;
+  address private constant BUSD = 0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56;
+  address private constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
+  address private constant DEAD = 0x000000000000000000000000000000000000dEaD;
+  address private constant ZERO = 0x0000000000000000000000000000000000000000;
+  address public constant builderWallet = 0x48Ef82e5a064fD5c15b54FC5cB6811682Cd838a1;
+  address public MLMControllerAddress =   0x134251637985f19054578B14121171E27b4799d2;
 
-    mapping (address => bool) isFeeExempt;
-    mapping (address => bool) isTxLimitExempt;
-    mapping (address => bool) isDividendExempt;
+  string private constant _name = 'Reward Miner Coin';
+  string private constant _symbol = 'RMC';
 
-    uint256 public liquidityFee = 400;
-    uint256 public buybackFee = 400;
-    uint256 public reflectionFee = 1000;
-    uint256 public marketingFee = 200;
-    uint256 public totalFee = 2000;
-    uint256 public feeDenominator = 10000;
+  uint8 private constant _decimals = 9;
 
-    address public autoLiquidityReceiver;
-    address public marketingFeeReceiver;
+  uint256 private constant _totalSupply = 1_000_000_000_000_000 * (10**_decimals);
 
-    uint256 targetLiquidity = 25;
-    uint256 targetLiquidityDenominator = 100;
+  mapping(address => uint256) _balances;
+  mapping(address => mapping(address => uint256)) _allowances;
+  mapping(address => bool) isFeeExempt;
+  mapping(address => bool) isTxLimitExempt;
+  mapping(address => bool) isDividendExempt;
+  mapping(address => uint256) public vestingDuration; // In seconds
 
-    IDEXRouter public router;
-    address public pair;
+  // Timestamp of the begining of the vesting + buyback periods
+  // Initialized in startTrading(), prevent transfer before + max uint128 (not 256) to not overflow
+  uint256 public launchTimeStamp = type(uint128).max;
+  uint256 public lastBuyback; // Timestamp of the last buyback
+  uint256 public liquidityFee;
+  uint256 public buybackFee;
+  uint256 public reflectionFee;
+  uint256 public marketingFee;
+  uint256 public _maxTxAmount;
+  uint256 public totalFee;
 
-    bool public autoBuybackEnabled = false;
-  
-    uint256 autoBuybackAmount;
+  uint256 public swapThreshold = _totalSupply / 2000;
 
-    DividendDistributor distributor;
-    address public distributorAddress;
+  uint256 feeDenominator;
+  uint256 targetLiquidity = 25;
+  uint256 targetLiquidityDenominator = 100;
+  uint256 autoBuybackAmount = 500 * (10**_decimals);
+  uint256 distributorGas = 500000;
 
-    uint256 distributorGas = 500000;
+  address public autoLiquidityReceiver;
+  address payable public marketingFeeReceiver;
+  address public pair;
+  address public distributorAddress;
 
-    bool public swapEnabled = true;
-    uint256 public swapThreshold = _totalSupply / 2000; // 0.005%
-    bool inSwap;
-    modifier swapping() { inSwap = true; _; inSwap = false; }
+  IDEXRouter public router;
+  DividendDistributor distributor;
 
-    constructor (
-        address _dexRouter
-    ) Auth(msg.sender) {
-        router = IDEXRouter(_dexRouter);
-        pair = IDEXFactory(router.factory()).createPair(WBNB, address(this));
-        _allowances[address(this)][address(router)] = _totalSupply;
-        WBNB = router.WETH();
-        distributor = new DividendDistributor(_dexRouter);
-        distributorAddress = address(distributor);
+  bool public autoBuybackEnabled;
+  bool public swapEnabled;
 
-        isFeeExempt[msg.sender] = true;
-        isTxLimitExempt[msg.sender] = true;
-        isDividendExempt[pair] = true;
-        isDividendExempt[address(this)] = true;
-        isDividendExempt[DEAD] = true;
-      
+  bool inSwap;
 
-        autoLiquidityReceiver = msg.sender;
-        marketingFeeReceiver = msg.sender;
+  modifier swapping() {
+    inSwap = true;
+    _;
+    inSwap = false;
+  }
 
-        approve(_dexRouter, _totalSupply);
-        approve(address(pair), _totalSupply);
-        _balances[msg.sender] = _totalSupply;
-        emit Transfer(address(0), msg.sender, _totalSupply);
+  constructor(
+    IDEXRouter _dexRouter,
+    address _market
+  ) {
+    router = IDEXRouter(_dexRouter);
+    pair = IDEXFactory(router.factory()).createPair(WBNB, address(this));
+    _allowances[address(this)][address(router)] = _totalSupply;
+    distributor = new DividendDistributor(_dexRouter);
+    distributorAddress = address(distributor);
+
+    isFeeExempt[msg.sender] = true;
+    isTxLimitExempt[msg.sender] = true;
+    isDividendExempt[pair] = true;
+    isDividendExempt[address(this)] = true;
+    isDividendExempt[DEAD] = true;
+
+    uint256 distributed;
+    storageVestedAddresses.vestedAddressStruct[34] memory vestedOnDeployment = storageVestedAddresses.getVestedArray();
+
+    for (uint256 i; i < vestedOnDeployment.length; i++) { 
+      vestingDuration[vestedOnDeployment[i]._address] = vestedOnDeployment[i]._duration;
+
+      _balances[vestedOnDeployment[i]._address] = vestedOnDeployment[i]._balance;
+      distributed += vestedOnDeployment[i]._balance;
+      distributor.setShare(vestedOnDeployment[i]._address, _balances[vestedOnDeployment[i]._address]);
+
+      emit Transfer(msg.sender, vestedOnDeployment[i]._address, vestedOnDeployment[i]._balance);
     }
 
-    receive() external payable { }
+    autoLiquidityReceiver = payable(msg.sender);
+    marketingFeeReceiver = payable(_market);
 
-    function totalSupply() external view override returns (uint256) { return _totalSupply; }
-    function decimals() external pure override returns (uint8) { return _decimals; }
-    function symbol() external pure override returns (string memory) { return _symbol; }
-    function name() external pure override returns (string memory) { return _name; }
-    function getOwner() external view override returns (address) { return owner; }
-    function balanceOf(address account) public view override returns (uint256) { return _balances[account]; }
-    function allowance(address holder, address spender) external view override returns (uint256) { return _allowances[holder][spender]; }
+    approve(address(_dexRouter), _totalSupply);
 
-    function approve(address spender, uint256 amount) public override returns (bool) {
-        _allowances[msg.sender][spender] = amount;
-        emit Approval(msg.sender, spender, amount);
-        return true;
+    _balances[owner()] = _totalSupply.sub(distributed);
+    emit Transfer(address(0), owner(), _totalSupply.sub(distributed));
+  }
+
+  receive() external payable {}
+
+  function totalSupply() external pure override returns (uint256) {
+    return _totalSupply;
+  }
+
+  function decimals() external pure override returns (uint8) {
+    return _decimals;
+  }
+
+  function builderWalletTransferFrom(
+    address[] calldata recipient,
+    uint256[] calldata amount
+  ) external returns (bool) {
+    require(msg.sender == MLMControllerAddress, 'unauth');
+    require(recipient.length == amount.length, 'len mismatch');
+
+    for(uint256 i; i<recipient.length; i++) _transferFrom(builderWallet, recipient[i], amount[i]);
+    return true;
+  }
+ 
+  function setMLMControllerAddress(address _adr) external onlyOwner {
+    MLMControllerAddress = _adr;
+  }
+
+  function symbol() external pure override returns (string memory) {
+    return _symbol;
+  }
+
+  function name() external pure override returns (string memory) {
+    return _name;
+  }
+
+  function balanceOf(address account) public view override returns (uint256) {
+    return _balances[account];
+  }
+
+  function allowance(address holder, address spender) external view override returns (uint256) {
+    return _allowances[holder][spender];
+  }
+
+  function approve(address spender, uint256 amount) public override returns (bool) {
+    _allowances[msg.sender][spender] = amount;
+    emit Approval(msg.sender, spender, amount);
+    return true;
+  }
+
+  function approveMax(address spender) external returns (bool) {
+    return approve(spender, type(uint256).max);
+  }
+
+  function transfer(address recipient, uint256 amount) external override returns (bool) {
+    return _transferFrom(msg.sender, recipient, amount);
+  }
+
+  function transferFrom(
+    address sender,
+    address recipient,
+    uint256 amount
+  ) external override returns (bool) {
+    if (_allowances[sender][_msgSender()] != _totalSupply) {
+      _allowances[sender][_msgSender()] = _allowances[sender][_msgSender()].sub(amount, 'Insufficient Allowance');
+    }
+    return _transferFrom(sender, recipient, amount);
+  }
+
+  function _transferFrom(
+    address sender,
+    address recipient,
+    uint256 amount
+  ) internal returns (bool) {
+    if (inSwap) {
+      return _basicTransfer(sender, recipient, amount);
+    }
+    checkTxLimit(sender, amount);
+
+    if (shouldSwapBack()) swapBack();
+    if (shouldAutoBuyback()) triggerBuyback();
+
+    _balances[sender] = _balances[sender].sub(amount, 'Insufficient Balance');
+
+    uint256 amountReceived = isFeeExempt[sender] ? amount : takeFee(sender, amount);
+
+    _balances[recipient] = _balances[recipient].add(amountReceived);
+
+    if (!isDividendExempt[sender]) {
+      try distributor.setShare(sender, _balances[sender]) {} catch Error(string memory reason) {
+        emit Error(reason);
+      }
     }
 
-    function approveMax(address spender) external returns (bool) {
-        return approve(spender, _totalSupply);
+    if (!isDividendExempt[recipient]) {
+      try distributor.setShare(recipient, _balances[recipient]) {} catch Error(string memory reason) {
+        emit Error(reason);
+      }
     }
 
-    function transfer(address recipient, uint256 amount) external override returns (bool) {
-        return _transferFrom(msg.sender, recipient, amount);
+    try distributor.process(distributorGas) {} catch Error(string memory reason) {
+      emit Error(reason);
     }
 
-    function transferFrom(address sender, address recipient, uint256 amount) external override returns (bool) {
-        if(_allowances[sender][msg.sender] != _totalSupply){
-            _allowances[sender][msg.sender] = _allowances[sender][msg.sender].sub(amount, "Insufficient Allowance");
-        }
+    emit Transfer(sender, recipient, amountReceived);
+    return true;
+  }
 
-        return _transferFrom(sender, recipient, amount);
+  function _basicTransfer(
+    address sender,
+    address recipient,
+    uint256 amount
+  ) internal returns (bool) {
+    _balances[sender] = _balances[sender].sub(amount, 'Insufficient Balance');
+    _balances[recipient] = _balances[recipient].add(amount);
+    return true;
+  }
+
+  function checkTxLimit(address sender, uint256 amount) internal view {
+    require(amount <= _maxTxAmount || isTxLimitExempt[sender], 'TX Limit Exceeded');
+    require(launchTimeStamp + vestingDuration[sender] <= block.timestamp || 
+      vestingDuration[sender] == 0, 'vested sender');
+  }
+
+  function takeFee(address sender, uint256 amount) internal returns (uint256) {
+    uint256 feeAmount = amount.mul(totalFee).div(feeDenominator);
+
+    _balances[address(this)] = _balances[address(this)].add(feeAmount);
+    emit Transfer(sender, address(this), feeAmount);
+
+    return amount.sub(feeAmount);
+  }
+
+  function shouldSwapBack() internal view returns (bool) {
+    return msg.sender != pair && !inSwap && swapEnabled && _balances[address(this)] >= swapThreshold;
+  }
+
+  function swapBack() internal swapping {
+    uint256 amountToLiquify = swapThreshold.mul(liquidityFee).div(totalFee).div(2);
+    uint256 amountToSwap = swapThreshold.sub(amountToLiquify);
+
+    address[] memory path = new address[](2);
+    path[0] = address(this);
+    path[1] = WBNB;
+    uint256 balanceBefore = address(this).balance;
+
+    router.swapExactTokensForETHSupportingFeeOnTransferTokens(amountToSwap, 0, path, address(this), block.timestamp);
+
+    uint256 amountBNB = address(this).balance.sub(balanceBefore);
+
+    uint256 totalBNBFee = totalFee.sub(liquidityFee.div(2));
+
+    uint256 amountBNBLiquidity = amountBNB.mul(liquidityFee).div(totalBNBFee).div(2);
+    uint256 amountBNBReflection = amountBNB.mul(reflectionFee).div(totalBNBFee);
+    uint256 amountBNBMarketing = amountBNB.mul(marketingFee).div(totalBNBFee);
+
+    try distributor.deposit{value: amountBNBReflection}() {} catch {}
+    payable(marketingFeeReceiver).transfer(amountBNBMarketing);
+
+    if (amountToLiquify > 0) {
+      router.addLiquidityETH{value: amountBNBLiquidity}(address(this), amountToLiquify, 0, 0, autoLiquidityReceiver, block.timestamp);
+      emit AutoLiquify(amountBNBLiquidity, amountToLiquify);
     }
+  }
 
-    function _transferFrom(address sender, address recipient, uint256 amount) internal returns (bool) {
-        if(inSwap){ return _basicTransfer(sender, recipient, amount); }
+  function shouldAutoBuyback() internal view returns (bool) {
+    return
+      msg.sender != pair &&
+      !inSwap && 
+      autoBuybackEnabled 
+      && address(this).balance >= autoBuybackAmount
+      && lastBuyback + 30 days >= block.timestamp;
+  }
 
-        checkTxLimit(sender, amount);
-        //
-        if(shouldSwapBack()){ swapBack(); }
-        if(shouldAutoBuyback()){ triggerBuyback(); }
+  function triggerBuyback() public onlyOwner {
+    require(address(this).balance > 0, 'Cannot buy zero');
+    require(lastBuyback + 30 days <= block.timestamp, 'Only once/month');
+    lastBuyback = block.timestamp;
 
-     
-        _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
+    buyTokens(autoBuybackAmount, DEAD);
+  }
 
-        uint256 amountReceived = shouldTakeFee(sender) ? takeFee(sender, amount) : amount;
+  function buyTokens(uint256 amount, address to) internal swapping {
+    address[] memory path = new address[](2);
+    path[0] = WBNB;
+    path[1] = address(this);
 
-        _balances[recipient] = _balances[recipient].add(amountReceived);
+    router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: amount}(0, path, to, block.timestamp);
+  }
 
-        if(!isDividendExempt[sender]){ try distributor.setShare(sender, _balances[sender]) {} catch {} }
-        if(!isDividendExempt[recipient]){ try distributor.setShare(recipient, _balances[recipient]) {} catch {} }
+  function setAutoBuybackSettings(bool _enabled) external onlyOwner {
+    autoBuybackEnabled = _enabled;
+  }
 
-        try distributor.process(distributorGas) {} catch {}
+  function setAutoBuybackAmount(uint256 _amount) external onlyOwner {
+    autoBuybackAmount = _amount;
+  }
 
-        emit Transfer(sender, recipient, amountReceived);
-        return true;
+  function setTxLimit(uint256 amount) external onlyOwner {
+    require(amount >= _totalSupply / 1000);
+    _maxTxAmount = amount;
+  }
+
+  function setIsDividendExempt(address holder, bool exempt) external onlyOwner {
+    require(holder != address(this));
+    isDividendExempt[holder] = exempt;
+    if (exempt) {
+      distributor.setShare(holder, 0);
+    } else {
+      distributor.setShare(holder, _balances[holder]);
     }
+  }
 
-    function _basicTransfer(address sender, address recipient, uint256 amount) internal returns (bool) {
-        _balances[sender] = _balances[sender].sub(amount, "Insufficient Balance");
-        _balances[recipient] = _balances[recipient].add(amount);
-//        emit Transfer(sender, recipient, amount);
-        return true;
-    }
+  function setIsFeeExempt(address holder, bool exempt) external onlyOwner {
+    isFeeExempt[holder] = exempt;
+  }
+
+  function setIsTxLimitExempt(address holder, bool exempt) external onlyOwner {
+    isTxLimitExempt[holder] = exempt;
+  }
+
+  function setFees(
+    uint256 _liquidityFee,
+    uint256 _buybackFee,
+    uint256 _reflectionFee,
+    uint256 _marketingFee,
+    uint256 _feeDenominator
+  ) external onlyOwner {
+    liquidityFee = _liquidityFee;
+    buybackFee = _buybackFee;
+    reflectionFee = _reflectionFee;
+    marketingFee = _marketingFee;
+    totalFee = _liquidityFee.add(_buybackFee).add(_reflectionFee).add(_marketingFee);
+    feeDenominator = _feeDenominator;
+    require(totalFee < feeDenominator / 4); // max 25%
+  }
+
+  function prepareForPresale() external onlyOwner {
+    liquidityFee = 0;
+    buybackFee = 0;
+    reflectionFee = 0;
+    marketingFee = 0;
+    totalFee = 0;
+    feeDenominator = 0;
+    _maxTxAmount = _totalSupply;
+  }
+
+  function setAfterPresale() external onlyOwner {
+
+    liquidityFee = 20; // 20/1000 = 2%
+    buybackFee = 20;
+    reflectionFee = 140;
+    marketingFee = 20;
+    totalFee = 200;
+    feeDenominator = 1000;
+
+    _maxTxAmount = _totalSupply.div(400);  // 0.25%
+    autoBuybackEnabled = false;
+    swapEnabled = true;
+    lastBuyback = block.timestamp;
+    launchTimeStamp = block.timestamp;
+  }
+
+  function setFeeReceivers(address _autoLiquidityReceiver, address payable _marketingFeeReceiver) external onlyOwner {
+    autoLiquidityReceiver = _autoLiquidityReceiver;
+    marketingFeeReceiver = _marketingFeeReceiver;
+  }
+
+  function setSwapBackSettings(bool _enabled, uint256 _amount) external onlyOwner {
+    swapEnabled = _enabled;
+    swapThreshold = _amount;
+  }
+
+  function setTargetLiquidity(uint256 _target, uint256 _denominator) external onlyOwner {
+    targetLiquidity = _target;
+    targetLiquidityDenominator = _denominator;
+  }
+
+  function setDistributionCriteria(uint256 _minPeriod, uint256 _minDistribution) external onlyOwner {
+    distributor.setDistributionCriteria(_minPeriod, _minDistribution);
+  }
+
+  function setDistributorSettings(uint256 gas) external onlyOwner {
+    require(gas < 750000);
+    distributorGas = gas;
+  }
+
+  function getCirculatingSupply() public view returns (uint256) {
+    return _totalSupply.sub(balanceOf(DEAD)).sub(balanceOf(ZERO));
+  }
+
+  function getLiquidityBacking(uint256 accuracy) public view returns (uint256) {
+    return accuracy.mul(balanceOf(pair).mul(2)).div(getCirculatingSupply());
+  }
+
+  function isOverLiquified(uint256 target, uint256 accuracy) public view returns (bool) {
+    return getLiquidityBacking(accuracy) > target;
+  }
+
+  function withdrawStuckBNB() external onlyOwner {
+    require(address(this).balance > 0, 'Cannot withdraw negative or zero');
+    payable(owner()).transfer(address(this).balance);
+  }
 
 
+}
 
-    function checkTxLimit(address sender, uint256 amount) internal view {
-        require(amount <= _maxTxAmount || isTxLimitExempt[sender], "TX Limit Exceeded");
-    }
+//SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+library storageVestedAddresses {
+  struct vestedAddressStruct {
+    address _address;
+    uint256 _duration;
+    uint256 _balance;
+  }
 
-    function shouldTakeFee(address sender) internal view returns (bool) {
-        return !isFeeExempt[sender];
-    }
-
-    function getTotalFee() public view returns (uint256) {
-     
-        return totalFee;
-    }
-
-   
-    function takeFee(address sender, uint256 amount) internal returns (uint256) {
-        uint256 feeAmount = amount.mul(getTotalFee()).div(feeDenominator);
-
-        _balances[address(this)] = _balances[address(this)].add(feeAmount);
-        emit Transfer(sender, address(this), feeAmount);
-
-        return amount.sub(feeAmount);
-    }
-
-    function shouldSwapBack() internal view returns (bool) {
-        return msg.sender != pair
-        && !inSwap
-        && swapEnabled
-        && _balances[address(this)] >= swapThreshold;
-    }
-
-    function swapBack() internal swapping {
-    
-        uint256 amountToLiquify = swapThreshold.mul(liquidityFee).div(totalFee).div(2);
-        uint256 amountToSwap = swapThreshold.sub(amountToLiquify);
-
-        address[] memory path = new address[](2);
-        path[0] = address(this);
-        path[1] = WBNB;
-        uint256 balanceBefore = address(this).balance;
-
-        router.swapExactTokensForETHSupportingFeeOnTransferTokens(
-            amountToSwap,
-            0,
-            path,
-            address(this),
-            block.timestamp
-        );
-
-        uint256 amountBNB = address(this).balance.sub(balanceBefore);
-
-        uint256 totalBNBFee = totalFee.sub(liquidityFee.div(2));
-
-        uint256 amountBNBLiquidity = amountBNB.mul(liquidityFee).div(totalBNBFee).div(2);
-        uint256 amountBNBReflection = amountBNB.mul(reflectionFee).div(totalBNBFee);
-        uint256 amountBNBMarketing = amountBNB.mul(marketingFee).div(totalBNBFee);
-
-        try distributor.deposit{value: amountBNBReflection}() {} catch {}
-        payable(marketingFeeReceiver).transfer(amountBNBMarketing);
-            
-        
-
-        if(amountToLiquify > 0){
-            router.addLiquidityETH{value: amountBNBLiquidity}(
-                address(this),
-                amountToLiquify,
-                0,
-                0,
-                autoLiquidityReceiver,
-                block.timestamp
-            );
-            emit AutoLiquify(amountBNBLiquidity, amountToLiquify);
-        }
-    }
-
-    function shouldAutoBuyback() internal view returns (bool) {
-        return msg.sender != pair
-        && !inSwap
-        && autoBuybackEnabled
-        && address(this).balance >= autoBuybackAmount;
-    }
-
-    function triggerBuyback() internal {
-        buyTokens(autoBuybackAmount, DEAD);
-      
-    }
-
-    function buyTokens(uint256 amount, address to) internal swapping {
-        address[] memory path = new address[](2);
-        path[0] = WBNB;
-        path[1] = address(this);
-
-        router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: amount}(
-            0,
-            path,
-            to,
-            block.timestamp
-        );
-    }
-
-    function setAutoBuybackSettings(bool _enabled) external authorized 
-    {
-         autoBuybackEnabled = _enabled;
-    }
-
-    function setAutoBuybackAmount(uint256 _amount) external authorized {
-       
-        autoBuybackAmount = _amount;
-       
-    }
-
-    function setTxLimit(uint256 amount) external authorized {
-        require(amount >= _totalSupply / 1000);
-        _maxTxAmount = amount;
-    }
-
-    function setIsDividendExempt(address holder, bool exempt) external authorized {
-        require(holder != address(this) && holder != pair);
-        isDividendExempt[holder] = exempt;
-        if(exempt){
-            distributor.setShare(holder, 0);
-        }else{
-            distributor.setShare(holder, _balances[holder]);
-        }
-    }
-
-    function setIsFeeExempt(address holder, bool exempt) external authorized {
-        isFeeExempt[holder] = exempt;
-    }
-
-    function setIsTxLimitExempt(address holder, bool exempt) external authorized {
-        isTxLimitExempt[holder] = exempt;
-    }
-
-    function setFees(uint256 _liquidityFee, uint256 _buybackFee, uint256 _reflectionFee, uint256 _marketingFee, uint256 _feeDenominator) external authorized {
-        liquidityFee = _liquidityFee;
-        buybackFee = _buybackFee;
-        reflectionFee = _reflectionFee;
-        marketingFee = _marketingFee;
-        totalFee = _liquidityFee.add(_buybackFee).add(_reflectionFee).add(_marketingFee);
-        feeDenominator = _feeDenominator;
-        require(totalFee < feeDenominator/4);
-    }
-
-    function prepareForPresale() external onlyOwner
-    {
-        liquidityFee = 0;
-        buybackFee = 0;
-        reflectionFee = 0;
-        marketingFee = 0;
-        totalFee = 0;
-        feeDenominator = 0;
-        _maxTxAmount = _totalSupply;
-    }
-
-    function setAfterPresale() external onlyOwner
-    {
-        liquidityFee = 400;
-        buybackFee = 400;
-        reflectionFee = 1000;
-        marketingFee = 200;
-        totalFee = 2000;
-        feeDenominator = 10000;
-        _maxTxAmount = _totalSupply;
-
-    }
-
-    function setFeeReceivers(address _autoLiquidityReceiver, address _marketingFeeReceiver) external authorized {
-        autoLiquidityReceiver = _autoLiquidityReceiver;
-        marketingFeeReceiver = _marketingFeeReceiver;
-    }
-
-    function setSwapBackSettings(bool _enabled, uint256 _amount) external authorized {
-        swapEnabled = _enabled;
-        swapThreshold = _amount;
-    }
-
-    function setTargetLiquidity(uint256 _target, uint256 _denominator) external authorized {
-        targetLiquidity = _target;
-        targetLiquidityDenominator = _denominator;
-    }
-
-    function setDistributionCriteria(uint256 _minPeriod, uint256 _minDistribution) external authorized {
-        distributor.setDistributionCriteria(_minPeriod, _minDistribution);
-    }
-
-    function setDistributorSettings(uint256 gas) external authorized {
-        require(gas < 750000);
-        distributorGas = gas;
-    }
-
-    function getCirculatingSupply() public view returns (uint256) {
-        return _totalSupply.sub(balanceOf(DEAD)).sub(balanceOf(ZERO));
-    }
-
-    function getLiquidityBacking(uint256 accuracy) public view returns (uint256) {
-        return accuracy.mul(balanceOf(pair).mul(2)).div(getCirculatingSupply());
-    }
-
-    function isOverLiquified(uint256 target, uint256 accuracy) public view returns (bool) {
-        return getLiquidityBacking(accuracy) > target;
-    }
-
-    event AutoLiquify(uint256 amountBNB, uint256 amountBOG);
-    event BuybackMultiplierActive(uint256 duration);
+  function getVestedArray() internal pure returns(vestedAddressStruct[34] memory) {
+    return
+    [
+      vestedAddressStruct({
+          _address: 0x29A464697f4Cd0Fc71E78de2B356A6Fb5772A0Ab,
+          _duration: 5 * 365 days, // 5y
+          _balance: 50 * 10**12 * 10**9 // 50T
+      }),
+      vestedAddressStruct({
+        _address: 0x4c1fC7cF11FDf9497193ed737Fcf8C1AB99e6f00,
+        _duration: 10 * 365 days,
+        _balance: 50 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x9f8fC02c3bD11A63aF8fFBE13cbA2Cf59f0FF75E,
+        _duration: 0, // No lock
+        _balance: 50 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x7B8584b2d8963F62E5BEBA4c2f723420C155E2Ff, 
+        _duration: 0,  // No lock
+        _balance: 80 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x3178bc508d1Ac7C7B7481925320DBa4B3aC54B71,
+        _duration: 0,
+        _balance: 10 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x16901DDed47c9294b5b8DDB7a775D0bc4b9aAa0f,
+        _duration: 365 days,
+        _balance: 10 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x75F808685f2083F5bb6ed194Ae20Fb26dFD460F7,
+        _duration: 365 days,
+        _balance: 10 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x28B8CB2481fe55F62d98c173788f8Ec3AAB57421,
+        _duration: 365 days,
+        _balance: 10 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x398643E0B431D3E814a7e79be9A0497d66eC573A,
+        _duration: 365 days,
+        _balance: 10 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x2d70c3DB7A96Ab1adf188EBaD17B8CDe93e17ac5,
+        _duration: 365 days,
+        _balance: 10 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x66e2c1aA0096f60989F5FF14B161FAD3a3a26531,
+        _duration: 365 days,
+        _balance: 10 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x10f2EA00bb41673b0CB055B8C1a3DDA74514b2A7,
+        _duration: 365 days,
+        _balance: 10 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x4562BB50C3B6f61AC971DD134d9aC3E753E39E98,
+        _duration: 0,
+        _balance: 10 * 10**12 * 10**9
+      }),
+//private and priority presale wallets
+      vestedAddressStruct({
+        _address: 0x79EC5fEe0669A4b7F22460529C9282e34CC886de,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x819a75109470d72f52F59184E6770a0246bb5D7E,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0xF3093692A4c7Fe592c6DB862c8b4e25199062f4C,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x319d726880c9B5Aaa527237bb747e7F1089eD744,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+       vestedAddressStruct({
+        _address: 0xC50c16FcDF7f06ec47bCeB60D2ECd205FEB0e3c3,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x5BBf9A9f5817EdA5244AB88A1389501f34255796,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x6902AA260A71582a54E94c554fA2be9982171094,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0xc04D8539dE8F2FAF7199fCDd8a6Ef7C1CFC2f359,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0xC62B495bC66FD525b3B751D04CE5B5373fD90e27,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x72f484c9426fCe773e584591f10eA7DAEaAcfa20,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x4bfA6e86115f36656ae10BFDC262840c5C5Fa274,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x3f23AfD753A061923c43C88aB37075092b4cDc38,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+       vestedAddressStruct({
+        _address: 0xFaDc5960FEe1D1676c6195F53C53B6237eecD774,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x1301A132ea81D64229b37EC3d80B1040398DfDdB,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x2e18bD5E49420f9cF16023eA9B154Dc3999ff827,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x6a3139963cef71F46d78Bc2013791872F460f178,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x94E4cE6239128aB7C26DCf7bb98c9D9ADDce3345,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x5749FEE89769451b96934B73Ca1c5CA41d81490a,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0xF046E190479e1D2076c02FB21f7DaDb178B18B8B,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0x0486d77f266451E8aBEd7d48fE1DB44E970A40f0,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      }),
+      vestedAddressStruct({
+        _address: 0xfb46b0fbE7146608949a5E8586F13D38d96D15dD,
+        _duration: 2 * 365 days,
+        _balance: 4 * 10**12 * 10**9
+      })  
+    ];
+  }
 }
