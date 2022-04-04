@@ -1,10 +1,10 @@
 /**
- *Submitted for verification at BscScan.com on 2022-03-23
+ *Submitted for verification at BscScan.com on 2022-01-20
 */
 
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.7;
+pragma solidity 0.8.6;
 
 interface IERC20 {
 
@@ -698,18 +698,18 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 }
 
 
-contract WOM is Context, IERC20, Ownable {
+contract Token is Context, IERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
     using SafeERC20 for IERC20;
     
     address dead = 0x000000000000000000000000000000000000dEaD;
     
-    uint8 public maxLiqFee = 5;
-    uint8 public maxTaxFee = 5;
-    uint8 public maxBurnFee = 5;
-    uint8 public maxWalletFee = 5;
-    uint8 public maxBuybackFee = 5;
+    uint8 public maxLiqFee = 10;
+    uint8 public maxTaxFee = 10;
+    uint8 public maxBurnFee = 10;
+    uint8 public maxWalletFee = 10;
+    uint8 public maxBuybackFee = 10;
     uint8 public minMxTxPercentage = 1;
     uint8 public minMxWalletPercentage = 1;
     
@@ -722,16 +722,15 @@ contract WOM is Context, IERC20, Ownable {
     mapping (address => bool) private _isExcluded;
     address[] private _excluded;
     
-    address public router = 0x10ED43C718714eb63d5aA57B78B54704E256024E; 
-    //address public testnet router = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
-    //Testnet = 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3
+    address public router = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
+    //address public router = 0xD99D1c33F9fC3444f8101754aBC46c52416550D1;
     
     uint256 private constant MAX = ~uint256(0);
     uint256 public _tTotal;
     uint256 private _rTotal;
     uint256 private _tFeeTotal;
     
-    bool public mintedByCryptoCravers = true;
+    bool public mintedByMudra = true;
     
     string public _name;
     string public _symbol;
@@ -762,7 +761,7 @@ contract WOM is Context, IERC20, Ownable {
     uint256 public _maxTxAmount;
     uint256 public _maxWalletAmount;
     uint256 public numTokensSellToAddToLiquidity;    
-    uint256 private buyBackUpperLimit = 1 * 10**18;  //One BNB
+    uint256 private buyBackUpperLimit = 1 * 10**18;
     
     event SwapAndLiquifyEnabledUpdated(bool enabled);
     event SwapAndLiquify(
