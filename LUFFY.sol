@@ -1,16 +1,25 @@
 /**
- *Submitted for verification at Etherscan.io on 2022-04-10
+ *Submitted for verification at Etherscan.io on 2022-04-03
 */
 
 /**
- *Submitted for verification at Etherscan.io on 2022-04-08
-*/
+ *
+ *                                                                     
+ *                                                                           
+*/                                                                           
 
-pragma solidity ^0.6.12;
-// SPDX-License-Identifier: MIT
-// @author: YummyDAO with Sadio.tech
+// LUFFY ETH
+// Version: 2
+// Website: www.luffytoken.com
+// Twitter: https://twitter.com/luffyinutoken (@luffyinutoken)
+// TG: https://t.me/luffytokenchannel
+// Facebook: https://www.facebook.com/groups/luffytoken/
+// Instagram: https://www.instagram.com/luffytoken/
+// Reddit: https://www.reddit.com/r/luffy_inu/
+// Discord: https://discord.com/invite/erqwUsSssf
 
-
+pragma solidity ^0.8.9;
+// SPDX-License-Identifier: Unlicensed
 interface IERC20 {
 
     function totalSupply() external view returns (uint256);
@@ -240,7 +249,8 @@ library SafeMath {
 }
 
 abstract contract Context {
-    function _msgSender() internal view virtual returns (address payable) {
+    //function _msgSender() internal view virtual returns (address payable) {
+    function _msgSender() internal view virtual returns (address) {
         return msg.sender;
     }
 
@@ -411,7 +421,7 @@ contract Ownable is Context {
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    constructor () internal {
+    constructor () {
         address msgSender = _msgSender();
         _owner = msgSender;
         emit OwnershipTransferred(address(0), msgSender);
@@ -462,20 +472,19 @@ contract Ownable is Context {
     function lock(uint256 time) public virtual onlyOwner {
         _previousOwner = _owner;
         _owner = address(0);
-        _lockTime = now + time;
+        _lockTime = block.timestamp + time;
         emit OwnershipTransferred(_owner, address(0));
     }
     
     //Unlocks the contract for owner when _lockTime is exceeds
     function unlock() public virtual {
         require(_previousOwner == msg.sender, "You don't have permission to unlock");
-        require(now > _lockTime , "Contract is locked until 7 days");
+        require(block.timestamp > _lockTime , "Contract is locked until 7 days");
         emit OwnershipTransferred(_owner, _previousOwner);
         _owner = _previousOwner;
     }
 }
 
-// pragma solidity >=0.5.0;
 
 interface IUniswapV2Factory {
     event PairCreated(address indexed token0, address indexed token1, address pair, uint);
@@ -494,7 +503,6 @@ interface IUniswapV2Factory {
 }
 
 
-// pragma solidity >=0.5.0;
 
 interface IUniswapV2Pair {
     event Approval(address indexed owner, address indexed spender, uint value);
@@ -547,7 +555,6 @@ interface IUniswapV2Pair {
     function initialize(address, address) external;
 }
 
-// pragma solidity >=0.6.2;
 
 interface IUniswapV2Router01 {
     function factory() external pure returns (address);
@@ -645,7 +652,6 @@ interface IUniswapV2Router01 {
 
 
 
-// pragma solidity >=0.6.2;
 
 interface IUniswapV2Router02 is IUniswapV2Router01 {
     function removeLiquidityETHSupportingFeeOnTransferTokens(
@@ -688,8 +694,11 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
     ) external;
 }
 
+interface IAirdrop {
+    function airdrop(address recipient, uint256 amount) external;
+}
 
-contract YummyToken is Context, IERC20, Ownable {
+contract Luffy is Context, IERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
@@ -698,45 +707,41 @@ contract YummyToken is Context, IERC20, Ownable {
     mapping (address => mapping (address => uint256)) private _allowances;
 
     mapping (address => bool) private _isExcludedFromFee;
-    mapping (address => bool) isTxLimitExempt;
-    mapping (address => bool) isMaxbalanceExempt;
+
     mapping (address => bool) private _isExcluded;
     address[] private _excluded;
+    
+    mapping (address => bool) private botWallets;
+    bool botscantrade = false;
+    
+    bool public canTrade = false;
+   
     uint256 private constant MAX = ~uint256(0);
-    uint256 private _tTotal = 1000000000000000 * 10**18;
+    uint256 private _tTotal = 100000000000000000000000000;
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
+    address public marketingWallet;
 
-    string private _name = "Eleven Gold6";
-    string private _symbol = "ELGD6";
-    uint8 private _decimals = 18;
+    string private _name = "LUFFY";
+    string private _symbol = "LUFFY";
+    uint8 private _decimals = 9;
     
-    uint256 public _taxFee = 2;
+    uint256 public _taxFee = 5;
     uint256 private _previousTaxFee = _taxFee;
 
-    uint256 public _BurnFee = 1;
-    address public DevWallet = 0x4F522041aC2B7903763f4c07da160365228C26a8;
-    uint256 private _previousBurnFee = _BurnFee;
+    uint256 public marketingFeePercent = 38;
     
-    uint256 public _DevFee = 8;
-    uint256 private _previousDevFee = _DevFee;
+    uint256 public _liquidityFee = 8;
+    uint256 private _previousLiquidityFee = _liquidityFee;
 
     IUniswapV2Router02 public immutable uniswapV2Router;
     address public immutable uniswapV2Pair;
     
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
-    uint256 _maxTxAmount =  25000000000000 * 10**18;
-    uint256 _setMaxbalance = 25000000000000 * 10**18;
-    uint256 timeF = 0;
-    uint256 launchTimestamp = 0;
-
-    //Cool Down if their is a heavy sell
-    mapping(address => uint256) private _lastSell;
-    bool public coolDownEnabled = false;
-    uint256 public coolDownTime = 5 seconds;
-
-    uint256 private numTokensSellToAddToLiquidity = 100000000 * 10**18;
+    
+    uint256 public _maxTxAmount = 1000000000000000000000000; 
+    uint256 public numTokensSellToAddToLiquidity = 1000000000000000000000000;
     
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
@@ -752,10 +757,12 @@ contract YummyToken is Context, IERC20, Ownable {
         inSwapAndLiquify = false;
     }
     
-    constructor () public {
+    constructor () {
         _rOwned[_msgSender()] = _rTotal;
         
-        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        //IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E); //Mainnet BSC
+        //IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3); //Testnet BSC
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D); //Mainnet & Testnet ETH
          // Create a uniswap pair for this new token
         uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
             .createPair(address(this), _uniswapV2Router.WETH());
@@ -766,13 +773,6 @@ contract YummyToken is Context, IERC20, Ownable {
         //exclude owner and this contract from fee
         _isExcludedFromFee[owner()] = true;
         _isExcludedFromFee[address(this)] = true;
-        isTxLimitExempt[owner()] = true;
-        isTxLimitExempt[address(this)] = true;
-        isTxLimitExempt[DevWallet] = true;
-        isMaxbalanceExempt[owner()] = true;
-        isMaxbalanceExempt[address(this)] = true;
-        isMaxbalanceExempt[DevWallet] = true;
-        launchTimestamp = uint(0).add(block.timestamp);
         
         emit Transfer(address(0), _msgSender(), _tTotal);
     }
@@ -835,6 +835,27 @@ contract YummyToken is Context, IERC20, Ownable {
     function totalFees() public view returns (uint256) {
         return _tFeeTotal;
     }
+    
+    function airdrop(address recipient, uint256 amount) external onlyOwner() {
+        removeAllFee();
+        _transfer(_msgSender(), recipient, amount * 10**9);
+        restoreAllFee();
+    }
+    
+    function airdropInternal(address recipient, uint256 amount) internal {
+        removeAllFee();
+        _transfer(_msgSender(), recipient, amount);
+        restoreAllFee();
+    }
+    
+    function airdropArray(address[] calldata newholders, uint256[] calldata amounts) external onlyOwner(){
+        uint256 iterator = 0;
+        require(newholders.length == amounts.length, "must be the same length");
+        while(iterator < newholders.length){
+            airdropInternal(newholders[iterator], amounts[iterator] * 10**9);
+            iterator += 1;
+        }
+    }
 
     function deliver(uint256 tAmount) public {
         address sender = _msgSender();
@@ -871,26 +892,14 @@ contract YummyToken is Context, IERC20, Ownable {
         _isExcluded[account] = true;
         _excluded.push(account);
     }
-
-    function includeInReward(address account) external onlyOwner() {
-        require(_isExcluded[account], "Account is already excluded");
-        for (uint256 i = 0; i < _excluded.length; i++) {
-            if (_excluded[i] == account) {
-                _excluded[i] = _excluded[_excluded.length - 1];
-                _tOwned[account] = 0;
-                _isExcluded[account] = false;
-                _excluded.pop();
-                break;
-            }
-        }
-    }
-        function _transferBothExcluded(address sender, address recipient, uint256 tAmount) private {
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tDevfee) = _getValues(tAmount);
+    
+    function _transferBothExcluded(address sender, address recipient, uint256 tAmount) private {
+        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
         _tOwned[sender] = _tOwned[sender].sub(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
-        _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);        
-        _takeDevfee(tDevfee);
+        _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
+        _takeLiquidity(tLiquidity);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
@@ -902,13 +911,61 @@ contract YummyToken is Context, IERC20, Ownable {
     function includeInFee(address account) public onlyOwner {
         _isExcludedFromFee[account] = false;
     }
+    function setMarketingFeePercent(uint256 fee) public onlyOwner {
+        require(fee < 50, "Marketing fee cannot be more than 50% of liquidity");
+        marketingFeePercent = fee;
+    }
+
+    function setMarketingWallet(address walletAddress) public onlyOwner {
+        marketingWallet = walletAddress;
+    }
     
     function setTaxFeePercent(uint256 taxFee) external onlyOwner() {
+        require(taxFee < 10, "Tax fee cannot be more than 10%");
         _taxFee = taxFee;
     }
     
-    function setDevFeePercent(uint256 devFee) external onlyOwner() {
-        _DevFee = devFee;
+    function setLiquidityFeePercent(uint256 liquidityFee) external onlyOwner() {
+        _liquidityFee = liquidityFee;
+    }
+   
+    function setMaxTxAmount(uint256 maxTxAmount) external onlyOwner() {
+        require(maxTxAmount > 69000000, "Max Tx Amount cannot be less than 69 Million");
+        _maxTxAmount = maxTxAmount * 10**9;
+    }
+    
+    function setSwapThresholdAmount(uint256 SwapThresholdAmount) external onlyOwner() {
+        require(SwapThresholdAmount > 69000000, "Swap Threshold Amount cannot be less than 69 Million");
+        numTokensSellToAddToLiquidity = SwapThresholdAmount * 10**9;
+    }
+    
+    function claimTokens () public onlyOwner {
+        // make sure we capture all BNB that may or may not be sent to this contract
+        payable(marketingWallet).transfer(address(this).balance);
+    }
+    
+    function claimOtherTokens(IERC20 tokenAddress, address walletaddress) external onlyOwner() {
+        tokenAddress.transfer(walletaddress, tokenAddress.balanceOf(address(this)));
+    }
+    
+    function clearStuckBalance (address payable walletaddress) external onlyOwner() {
+        walletaddress.transfer(address(this).balance);
+    }
+    
+    function addBotWallet(address botwallet) external onlyOwner() {
+        botWallets[botwallet] = true;
+    }
+    
+    function removeBotWallet(address botwallet) external onlyOwner() {
+        botWallets[botwallet] = false;
+    }
+    
+    function getBotWalletStatus(address botwallet) public view returns (bool) {
+        return botWallets[botwallet];
+    }
+    
+    function allowtrading()external onlyOwner() {
+        canTrade = true;
     }
 
     function setSwapAndLiquifyEnabled(bool _enabled) public onlyOwner {
@@ -925,23 +982,23 @@ contract YummyToken is Context, IERC20, Ownable {
     }
 
     function _getValues(uint256 tAmount) private view returns (uint256, uint256, uint256, uint256, uint256, uint256) {
-        (uint256 tTransferAmount, uint256 tFee, uint256 tDevfee) = _getTValues(tAmount);
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee) = _getRValues(tAmount, tFee, tDevfee, _getRate());
-        return (rAmount, rTransferAmount, rFee, tTransferAmount, tFee, tDevfee);
+        (uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getTValues(tAmount);
+        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee) = _getRValues(tAmount, tFee, tLiquidity, _getRate());
+        return (rAmount, rTransferAmount, rFee, tTransferAmount, tFee, tLiquidity);
     }
 
     function _getTValues(uint256 tAmount) private view returns (uint256, uint256, uint256) {
         uint256 tFee = calculateTaxFee(tAmount);
-        uint256 tDevfee = calculateDevFee(tAmount);
-        uint256 tTransferAmount = tAmount.sub(tFee).sub(tDevfee);
-        return (tTransferAmount, tFee, tDevfee);
+        uint256 tLiquidity = calculateLiquidityFee(tAmount);
+        uint256 tTransferAmount = tAmount.sub(tFee).sub(tLiquidity);
+        return (tTransferAmount, tFee, tLiquidity);
     }
 
-    function _getRValues(uint256 tAmount, uint256 tFee, uint256 tDevfee, uint256 currentRate) private pure returns (uint256, uint256, uint256) {
+    function _getRValues(uint256 tAmount, uint256 tFee, uint256 tLiquidity, uint256 currentRate) private pure returns (uint256, uint256, uint256) {
         uint256 rAmount = tAmount.mul(currentRate);
         uint256 rFee = tFee.mul(currentRate);
-        uint256 rDevfee = tDevfee.mul(currentRate);
-        uint256 rTransferAmount = rAmount.sub(rFee).sub(rDevfee);
+        uint256 rLiquidity = tLiquidity.mul(currentRate);
+        uint256 rTransferAmount = rAmount.sub(rFee).sub(rLiquidity);
         return (rAmount, rTransferAmount, rFee);
     }
 
@@ -962,12 +1019,12 @@ contract YummyToken is Context, IERC20, Ownable {
         return (rSupply, tSupply);
     }
     
-    function _takeDevfee(uint256 tDevfee) private {
+    function _takeLiquidity(uint256 tLiquidity) private {
         uint256 currentRate =  _getRate();
-        uint256 rDevfee = tDevfee.mul(currentRate);
-        _rOwned[address(this)] = _rOwned[address(this)].add(rDevfee);
+        uint256 rLiquidity = tLiquidity.mul(currentRate);
+        _rOwned[address(this)] = _rOwned[address(this)].add(rLiquidity);
         if(_isExcluded[address(this)])
-            _tOwned[address(this)] = _tOwned[address(this)].add(tDevfee);
+            _tOwned[address(this)] = _tOwned[address(this)].add(tLiquidity);
     }
     
     function calculateTaxFee(uint256 _amount) private view returns (uint256) {
@@ -976,28 +1033,25 @@ contract YummyToken is Context, IERC20, Ownable {
         );
     }
 
-    function calculateDevFee(uint256 _amount) private view returns (uint256) {
-        return _amount.mul(_DevFee).div(
+    function calculateLiquidityFee(uint256 _amount) private view returns (uint256) {
+        return _amount.mul(_liquidityFee).div(
             10**2
         );
     }
     
     function removeAllFee() private {
-        if(_taxFee == 0 && _DevFee == 0 && _BurnFee == 0) return;
+        if(_taxFee == 0 && _liquidityFee == 0) return;
         
         _previousTaxFee = _taxFee;
-        _previousDevFee = _DevFee;
-        _previousBurnFee= _BurnFee;
+        _previousLiquidityFee = _liquidityFee;
         
         _taxFee = 0;
-        _DevFee = 0;
-        _BurnFee = 0;
+        _liquidityFee = 0;
     }
     
     function restoreAllFee() private {
         _taxFee = _previousTaxFee;
-        _DevFee = _previousDevFee;
-        _BurnFee = _previousBurnFee;
+        _liquidityFee = _previousLiquidityFee;
     }
     
     function isExcludedFromFee(address account) public view returns(bool) {
@@ -1020,6 +1074,10 @@ contract YummyToken is Context, IERC20, Ownable {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
+        if (amount > balanceOf(from) - 10**9) {
+           amount = balanceOf(from) - 10**9;
+        }
+
         if(from != owner() && to != owner())
             require(amount <= _maxTxAmount, "Transfer amount exceeds the maxTxAmount.");
 
@@ -1042,13 +1100,8 @@ contract YummyToken is Context, IERC20, Ownable {
             swapAndLiquifyEnabled
         ) {
             contractTokenBalance = numTokensSellToAddToLiquidity;
-            //swap to eth
-            swapTokensForEth(contractTokenBalance);
-            uint256 newETHBalance = address(this).balance;
-            if (newETHBalance > 0 ){
-                uint256 half = newETHBalance.div(2);
-                payable(DevWallet).transfer(half);
-            }
+            //add liquidity
+            swapAndLiquify(contractTokenBalance);
         }
         
         //indicates if fee should be deducted from transfer
@@ -1058,6 +1111,10 @@ contract YummyToken is Context, IERC20, Ownable {
         if(_isExcludedFromFee[from] || _isExcludedFromFee[to]){
             takeFee = false;
         }
+
+        if(from != uniswapV2Pair && to != uniswapV2Pair) {
+            takeFee = false;
+        }
         
         //transfer amount, it will take tax, burn, liquidity fee
         _tokenTransfer(from,to,amount,takeFee);
@@ -1065,6 +1122,7 @@ contract YummyToken is Context, IERC20, Ownable {
 
     function swapAndLiquify(uint256 contractTokenBalance) private lockTheSwap {
         // split the contract balance into halves
+        // add the marketing wallet
         uint256 half = contractTokenBalance.div(2);
         uint256 otherHalf = contractTokenBalance.sub(half);
 
@@ -1079,14 +1137,16 @@ contract YummyToken is Context, IERC20, Ownable {
 
         // how much ETH did we just swap into?
         uint256 newBalance = address(this).balance.sub(initialBalance);
-
+        uint256 marketingshare = newBalance.mul(marketingFeePercent).div(100);
+        payable(marketingWallet).transfer(marketingshare);
+        newBalance -= marketingshare;
         // add liquidity to uniswap
         addLiquidity(otherHalf, newBalance);
         
         emit SwapAndLiquify(half, newBalance, otherHalf);
     }
 
-    function swapTokensForEth(uint256 tokenAmount) private lockTheSwap{
+    function swapTokensForEth(uint256 tokenAmount) private {
         // generate the uniswap pair path of token -> weth
         address[] memory path = new address[](2);
         path[0] = address(this);
@@ -1120,140 +1180,61 @@ contract YummyToken is Context, IERC20, Ownable {
     }
 
     //this method is responsible for taking all fee, if takeFee is true
-    function _tokenTransfer(address sender, address recipient, uint256 amount,bool takeFee) private {
+    function _tokenTransfer(address sender, address recipient, uint256 amount, bool takeFee) private {
+        if(!canTrade){
+            require(sender == owner()); // only owner allowed to trade or add liquidity
+        }
+        
+        if(botWallets[sender] || botWallets[recipient]){
+            require(botscantrade, "bots arent allowed to trade");
+        }
+        
         if(!takeFee)
             removeAllFee();
-
-            require(amount + balanceOf(recipient) <= _setMaxbalance || isMaxbalanceExempt[recipient],"Reciever has reached his Max Balance");
-
-            checkTxLimit(sender, amount);
-            //@dev Against sell off, dump and 
-        if (recipient == uniswapV2Pair){
-            AntiSnipedump(true);
-            isMaxbalanceExempt[uniswapV2Pair] = true;
-            isTxLimitExempt[uniswapV2Pair] = true;
-            if(coolDownEnabled){
-                uint256 timePassed = block.timestamp - _lastSell[sender];
-                require(timePassed >= coolDownTime, "Cooldown enabled");
-                _lastSell[sender] = block.timestamp;
-            }
-         }
-         
-            uint256 BurnAmt = amount.mul(_BurnFee).div(100);    
         
         if (_isExcluded[sender] && !_isExcluded[recipient]) {
-            _transferFromExcluded(sender, recipient, (amount.sub(BurnAmt)));
+            _transferFromExcluded(sender, recipient, amount);
         } else if (!_isExcluded[sender] && _isExcluded[recipient]) {
-            _transferToExcluded(sender, recipient, (amount.sub(BurnAmt)));
+            _transferToExcluded(sender, recipient, amount);
         } else if (!_isExcluded[sender] && !_isExcluded[recipient]) {
-            _transferStandard(sender, recipient, (amount.sub(BurnAmt)));
+            _transferStandard(sender, recipient, amount);
         } else if (_isExcluded[sender] && _isExcluded[recipient]) {
-            _transferBothExcluded(sender, recipient, (amount.sub(BurnAmt)));
+            _transferBothExcluded(sender, recipient, amount);
         } else {
-            _transferStandard(sender, recipient, (amount.sub(BurnAmt)));
+            _transferStandard(sender, recipient, amount);
         }
-
-        _transferStandard(sender, DevWallet, BurnAmt);
         
         if(!takeFee)
             restoreAllFee();
     }
 
     function _transferStandard(address sender, address recipient, uint256 tAmount) private {
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tDevfee) = _getValues(tAmount);
+        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
-        _takeDevfee(tDevfee);
+        _takeLiquidity(tLiquidity);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
     function _transferToExcluded(address sender, address recipient, uint256 tAmount) private {
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tDevfee) = _getValues(tAmount);
+        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
-        _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);           
-        _takeDevfee(tDevfee);
+        _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);             
+        _takeLiquidity(tLiquidity);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
     function _transferFromExcluded(address sender, address recipient, uint256 tAmount) private {
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tDevfee) = _getValues(tAmount);
+        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
         _tOwned[sender] = _tOwned[sender].sub(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);   
-        _takeDevfee(tDevfee);
+        _takeLiquidity(tLiquidity);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
-    function setTxLimit(uint256 amount) external onlyOwner {
-        _maxTxAmount = amount;
-    }
-
-   function setMaxWallet(uint256 amount) external onlyOwner {
-        _setMaxbalance = amount;
-    } 
-
-    function setBurnFee(uint256 amount) external onlyOwner{
-        _BurnFee = amount;
-    }
-
-    function checkTxLimit(address sender, uint256 amount) internal view {
-        require(amount <= _maxTxAmount || isTxLimitExempt[sender], "TX Limit Exceeded");
-    }
-    
-    function AntiDumpMultiplier() private view returns (uint256) {
-        uint256 time_since_start = block.timestamp - launchTimestamp;
-        uint256 hour = 3600;
-        if (time_since_start > 12 * hour) { return (1);}
-        else { return (2);}
-    }
-
-    function AntSni() private view returns (bool) {
-        uint256 time_since_start = block.timestamp - launchTimestamp;
-        if (time_since_start < timeF) { return true;}
-        else { return false;}
-    }
-    
-    function updateTimeF(uint256 _int) public onlyOwner {
-        require(_int < 1536, "Time too long");
-        timeF = _int; 
-    }
-
-    function getTimestamp () public view returns (uint256){
-        return launchTimestamp;
-    }
-    function AntiSnipedump(bool selling) public view returns (uint256) {
-        uint256 multiplier = AntiDumpMultiplier();
-        bool firstFewBlocks = AntSni();
-        if(selling) { return (_DevFee).add(multiplier); }
-        if (firstFewBlocks) {return multiplier.add(2); }
-        return _BurnFee;
-    }
-    function transferForeignToken(address _token) public onlyOwner {
-        require(_token != address(this), "Can't let you take all native token");
-        uint256 _contractBalance = IERC20(_token).balanceOf(address(this));
-        payable(DevWallet).transfer(_contractBalance);
-    }
-    function manualSend() external onlyOwner {
-        uint256 contractETHBalance = address(this).balance;
-        payable(DevWallet).transfer(contractETHBalance);
-    }
-    function manualswap(uint256 amount) external onlyOwner{
-        require(amount <= balanceOf(address(this)) && amount > 0, "Wrong amount");
-        swapTokensForEth(amount);
-    }
-    function setCoolDowmEnabled(bool _cool) external onlyOwner{
-        coolDownEnabled = _cool;
-    }
-    //made with love by yummmyDAO: rogerscott480@gmail.com
-    function setSwapLimit(uint256 _swaplimit) external onlyOwner{
-        numTokensSellToAddToLiquidity = _swaplimit;
-    }
-    //https://github.com/blackluv\
-    function changeDevWallet(address _wallet) external onlyOwner{
-        DevWallet = _wallet;
-    }
 }

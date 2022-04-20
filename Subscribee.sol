@@ -3,109 +3,11 @@ pragma solidity ^0.8.6;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./SubscribeeV1.sol";
-
-contract BeehiveV1 is Ownable {
-
-  mapping(string => contractInfo) public slugs;
-  uint256 public Adminfund;
-  uint256 public Deployfee;
-  uint256 public Slugfee;
-  bool public Frozen = false;
-
-  event NewContract(
-    address newSubscribeeContract,
-    uint timeDeployed
-  );
-
-  event slugChanged(
-    address contractAddress,
-    uint timeDeployed,
-    string oldSlug,
-    string newSlug
-  );
-
-  struct contractInfo {
-    address contractAddress;
-    uint timeDeployed;
-  }
-
-  constructor(uint fee, uint slugfee){
-    Deployfee = fee;
-    Slugfee = slugfee;
-  }
-
-  function toggleFreeze() external onlyOwner{
-    if(Frozen == false){
-      Frozen = true;
-    }else{
-      Frozen = false;
-    }
-  }
-
-  function setDeployFee(uint deployfee, uint slugfee) external onlyOwner{
-    Deployfee = deployfee;
-    Slugfee = slugfee;
-  }
-
-  function getDeployFeeFunds(address toAddress) external onlyOwner{
-    payable(toAddress).transfer(Adminfund);
-    Adminfund = 0;
-  }
-
-  function getERC20Funds(address toAddress, address tokenAddress) external onlyOwner {
-    IERC20 token = IERC20(tokenAddress);
-    uint256 tokenAmount = token.balanceOf(address(this));
-    token.transferFrom(address(this), toAddress, tokenAmount);
-  }
-
-
-  function changeSlug(string memory oldslug, string memory newslug) external payable{
-    SubscribeeV1 subscribeeContract = SubscribeeV1(slugs[oldslug].contractAddress);
-    uint timeCreated = slugs[oldslug].timeDeployed;
-    require(!Frozen, 'Beehive is currently frozen...');
-    require(subscribeeContract.owner() == msg.sender, 'Only the Owner of the contract can do this');
-    require(slugs[newslug].contractAddress == address(0), 'Slug has been taken');
-    require(msg.value == Slugfee, 'Please pay the appropiate amount...');
-
-    Adminfund += msg.value;
-    slugs[newslug] = contractInfo(slugs[oldslug].contractAddress, timeCreated);
-    emit slugChanged(slugs[oldslug].contractAddress, timeCreated, oldslug, newslug);
-    delete slugs[oldslug];
-  }
-
-
-  function deploySubscribeeContract(address operatorAddress, string memory title, string memory slug, string memory image) external payable{
-    require(slugs[slug].contractAddress == address(0), 'Slug has been taken');
-    require(!Frozen, 'Beehive is currently frozen...');
-    require(msg.value == Deployfee, 'Please pay the appropiate amount...');
-
-    Adminfund += msg.value;
-
-    SubscribeeV1 subscribeeContract = new SubscribeeV1(address(this), operatorAddress, title, slug, image);
-    subscribeeContract.transferOwnership(msg.sender);
-
-    address subscribeeContractAddress = address(subscribeeContract);
-    slugs[slug] = contractInfo(subscribeeContractAddress, block.timestamp);
-
-    emit NewContract(subscribeeContractAddress, block.timestamp);
-    return;
-  }
-
-
-
-}
-
-// SPDX-License-Identifier: Business Source License 1.1
-pragma solidity ^0.8.6;
-
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract SubscribeeV1 is Ownable{
 
   uint64 public nextPlanId;
-  bool public suspended = false;
+  bool public suspended;
   string public title;
   string public slug;
   string public image;
@@ -228,7 +130,7 @@ contract SubscribeeV1 is Ownable{
   function createPlan(string memory planTitle, address merchant, address token, uint128 amount, uint128 frequency) external onlyOperatorOrOwner{
     require(token != address(0), 'address cannot be null address');
     require(amount > 0, 'amount needs to be > 0');
-    require(frequency > 0, 'frequency needs to be greater then 24 hours');
+    require(frequency > 86400, 'frequency needs to be greater then 24 hours');
 
     plans[nextPlanId] = Plan(
       planTitle,
@@ -255,26 +157,25 @@ contract SubscribeeV1 is Ownable{
     _delete(msg.sender, planId, 'User Deleting Subscription');
   }
 
-  function deleteUser(uint64 planId, address user) external onlyOperatorOrOwner{
-    _delete(user, planId, 'Owner/Operator Deleted Subscription');
-  }
-
   function selfPay(uint64 planId) external {
     require(!suspended, 'contract is suspended');
     _safePay(msg.sender, planId);
   }
 
-  function pay(address subscriber, uint64 planId) external onlyOperatorOrOwner {
-    require(!suspended, 'contract is suspended');
-    require(!plans[planId].halted, 'plan is halted');
-    _safePay(subscriber, planId);
-  }
-
   function multiPay(UserObject[] memory users) external onlyOperatorOrOwner{
+    require(!suspended, 'contract is suspended');
     for(uint i = 0; i < users.length; i++){
       address subscriber = users[i].subscriber;
       uint64 planId = users[i].planId;
       _safePay(subscriber, planId);
+    }
+  }
+
+  function multiDelete(UserObject[] memory users) external onlyOperatorOrOwner{
+    for(uint i = 0; i < users.length; i++){
+      address subscriber = users[i].subscriber;
+      uint64 planId = users[i].planId;
+      _delete(subscriber, planId, 'Owner/Operator Deleted Subscription');
     }
   }
 
@@ -290,7 +191,7 @@ contract SubscribeeV1 is Ownable{
 
     // conditionals for storage
     require(
-       subscriber != address(0),
+       subscription.start != 0,
       'this subscription does not exist'
     );
 
@@ -398,4 +299,102 @@ contract SubscribeeV1 is Ownable{
     // If user does not have to pay yet, stop subscription
     subscription.stopped = true;
   }
+}
+
+// SPDX-License-Identifier: Business Source License 1.1
+pragma solidity ^0.8.6;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "./SubscribeeV1.sol";
+
+contract BeehiveV1 is Ownable {
+
+  mapping(string => contractInfo) public slugs;
+  uint256 public Adminfund;
+  uint256 public Deployfee;
+  uint256 public Slugfee;
+  bool public Frozen = false;
+
+  event NewContract(
+    address newSubscribeeContract,
+    uint timeDeployed
+  );
+
+  event slugChanged(
+    address contractAddress,
+    uint timeDeployed,
+    string oldSlug,
+    string newSlug
+  );
+
+  struct contractInfo {
+    address contractAddress;
+    uint timeDeployed;
+  }
+
+  constructor(uint fee, uint slugfee){
+    Deployfee = fee;
+    Slugfee = slugfee;
+  }
+
+  function toggleFreeze() external onlyOwner{
+    if(Frozen == false){
+      Frozen = true;
+    }else{
+      Frozen = false;
+    }
+  }
+
+  function setDeployFee(uint deployfee, uint slugfee) external onlyOwner{
+    Deployfee = deployfee;
+    Slugfee = slugfee;
+  }
+
+  function getDeployFeeFunds(address toAddress) external onlyOwner{
+    payable(toAddress).transfer(Adminfund);
+    Adminfund = 0;
+  }
+
+  function getERC20Funds(address toAddress, address tokenAddress) external onlyOwner {
+    IERC20 token = IERC20(tokenAddress);
+    uint256 tokenAmount = token.balanceOf(address(this));
+    token.transferFrom(address(this), toAddress, tokenAmount);
+  }
+
+
+  function changeSlug(string memory oldslug, string memory newslug) external payable{
+    SubscribeeV1 subscribeeContract = SubscribeeV1(slugs[oldslug].contractAddress);
+    uint timeCreated = slugs[oldslug].timeDeployed;
+    require(!Frozen, 'Beehive is currently frozen...');
+    require(subscribeeContract.owner() == msg.sender, 'Only the Owner of the contract can do this');
+    require(slugs[newslug].contractAddress == address(0), 'Slug has been taken');
+    require(msg.value == Slugfee, 'Please pay the appropiate amount...');
+
+    Adminfund += msg.value;
+    slugs[newslug] = contractInfo(slugs[oldslug].contractAddress, timeCreated);
+    emit slugChanged(slugs[oldslug].contractAddress, timeCreated, oldslug, newslug);
+    delete slugs[oldslug];
+  }
+
+
+  function deploySubscribeeContract(address operatorAddress, string memory title, string memory slug, string memory image) external payable{
+    require(slugs[slug].contractAddress == address(0), 'Slug has been taken');
+    require(!Frozen, 'Beehive is currently frozen...');
+    require(msg.value == Deployfee, 'Please pay the appropiate amount...');
+
+    Adminfund += msg.value;
+
+    SubscribeeV1 subscribeeContract = new SubscribeeV1(address(this), operatorAddress, title, slug, image);
+    subscribeeContract.transferOwnership(msg.sender);
+
+    address subscribeeContractAddress = address(subscribeeContract);
+    slugs[slug] = contractInfo(subscribeeContractAddress, block.timestamp);
+
+    emit NewContract(subscribeeContractAddress, block.timestamp);
+    return;
+  }
+
+
+
 }
