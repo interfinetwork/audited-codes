@@ -1,14 +1,5 @@
-/**
- *Submitted for verification at Etherscan.io on 2022-04-10
-*/
-
-/**
- *Submitted for verification at Etherscan.io on 2022-04-08
-*/
-
-pragma solidity ^0.6.12;
+pragma solidity ^0.8.13;
 // SPDX-License-Identifier: MIT
-// @author: YummyDAO with Sadio.tech
 
 
 interface IERC20 {
@@ -240,7 +231,7 @@ library SafeMath {
 }
 
 abstract contract Context {
-    function _msgSender() internal view virtual returns (address payable) {
+    function _msgSender() internal view virtual returns (address) {
         return msg.sender;
     }
 
@@ -411,7 +402,7 @@ contract Ownable is Context {
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    constructor () internal {
+    constructor () {
         address msgSender = _msgSender();
         _owner = msgSender;
         emit OwnershipTransferred(address(0), msgSender);
@@ -462,14 +453,14 @@ contract Ownable is Context {
     function lock(uint256 time) public virtual onlyOwner {
         _previousOwner = _owner;
         _owner = address(0);
-        _lockTime = now + time;
+        _lockTime = block.timestamp + time;
         emit OwnershipTransferred(_owner, address(0));
     }
     
     //Unlocks the contract for owner when _lockTime is exceeds
     function unlock() public virtual {
         require(_previousOwner == msg.sender, "You don't have permission to unlock");
-        require(now > _lockTime , "Contract is locked until 7 days");
+        require(block.timestamp > _lockTime , "Contract is locked until 7 days");
         emit OwnershipTransferred(_owner, _previousOwner);
         _owner = _previousOwner;
     }
@@ -643,10 +634,6 @@ interface IUniswapV2Router01 {
     function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);
 }
 
-
-
-// pragma solidity >=0.6.2;
-
 interface IUniswapV2Router02 is IUniswapV2Router01 {
     function removeLiquidityETHSupportingFeeOnTransferTokens(
         address token,
@@ -689,7 +676,7 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 }
 
 
-contract YummyToken is Context, IERC20, Ownable {
+contract ElevenGold is Context, IERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
@@ -707,22 +694,22 @@ contract YummyToken is Context, IERC20, Ownable {
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
 
-    string private _name = "Eleven Gold6";
-    string private _symbol = "ELGD6";
+    string private _name = "Eleven Gold";
+    string private _symbol = "ELGD";
     uint8 private _decimals = 18;
     
     uint256 public _taxFee = 2;
     uint256 private _previousTaxFee = _taxFee;
 
     uint256 public _BurnFee = 1;
-    address public DevWallet = 0x4F522041aC2B7903763f4c07da160365228C26a8;
     uint256 private _previousBurnFee = _BurnFee;
     
     uint256 public _DevFee = 8;
     uint256 private _previousDevFee = _DevFee;
+    address public DevWallet = 0x6DCb79d150Eb5FB0Ecc28c1D754E6d26E2e323C2;
 
     IUniswapV2Router02 public immutable uniswapV2Router;
-    address public immutable uniswapV2Pair;
+    address public uniswapV2Pair;
     
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
@@ -735,8 +722,7 @@ contract YummyToken is Context, IERC20, Ownable {
     mapping(address => uint256) private _lastSell;
     bool public coolDownEnabled = false;
     uint256 public coolDownTime = 5 seconds;
-
-    uint256 private numTokensSellToAddToLiquidity = 100000000 * 10**18;
+    uint256 public numTokensSellToAddToLiquidity = 100000000 * 10**18;
     
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
@@ -752,7 +738,7 @@ contract YummyToken is Context, IERC20, Ownable {
         inSwapAndLiquify = false;
     }
     
-    constructor () public {
+    constructor () {
         _rOwned[_msgSender()] = _rTotal;
         
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
@@ -772,6 +758,7 @@ contract YummyToken is Context, IERC20, Ownable {
         isMaxbalanceExempt[owner()] = true;
         isMaxbalanceExempt[address(this)] = true;
         isMaxbalanceExempt[DevWallet] = true;
+        isMaxbalanceExempt[uniswapV2Pair] = true;
         launchTimestamp = uint(0).add(block.timestamp);
         
         emit Transfer(address(0), _msgSender(), _tTotal);
@@ -962,6 +949,17 @@ contract YummyToken is Context, IERC20, Ownable {
         return (rSupply, tSupply);
     }
     
+    function exemptFromMaxBalanceLimit(address wallet, bool value) external onlyOwner
+    {
+        isMaxbalanceExempt[wallet] = value;
+    }
+
+    function _isMaxBalExempted(address wallet) view external returns(bool)
+    {
+        return isMaxbalanceExempt[wallet];
+    }
+
+
     function _takeDevfee(uint256 tDevfee) private {
         uint256 currentRate =  _getRate();
         uint256 rDevfee = tDevfee.mul(currentRate);
@@ -1152,8 +1150,8 @@ contract YummyToken is Context, IERC20, Ownable {
         } else {
             _transferStandard(sender, recipient, (amount.sub(BurnAmt)));
         }
-
-        _transferStandard(sender, DevWallet, BurnAmt);
+        if(BurnAmt > 0){
+        _transferStandard(sender, DevWallet, BurnAmt);}
         
         if(!takeFee)
             restoreAllFee();
@@ -1248,11 +1246,15 @@ contract YummyToken is Context, IERC20, Ownable {
     function setCoolDowmEnabled(bool _cool) external onlyOwner{
         coolDownEnabled = _cool;
     }
-    //made with love by yummmyDAO: rogerscott480@gmail.com
-    function setSwapLimit(uint256 _swaplimit) external onlyOwner{
+
+    function changeCooldownTimer(uint256 _timer) external onlyOwner
+    {
+        coolDownTime = _timer;
+    }
+
+    function changeSwapLimit(uint256 _swaplimit) external onlyOwner{
         numTokensSellToAddToLiquidity = _swaplimit;
     }
-    //https://github.com/blackluv\
     function changeDevWallet(address _wallet) external onlyOwner{
         DevWallet = _wallet;
     }
