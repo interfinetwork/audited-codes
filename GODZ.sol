@@ -1,5 +1,18 @@
 /**
- *Submitted for verification at Etherscan.io on 2022-06-13
+ *Submitted for verification at Etherscan.io on 2022-06-16
+*/
+
+// SPDX-License-Identifier: MIT
+
+/*
+    Twitter@GodzWillRise
+    Contract is renounced at launch
+    Liquidity will be BURNT at 20k MC
+    0 Tax
+    1/2 ecosystem tokens
+    Zeus is 0 tax, low supply for governance
+    This will be followed by a 5% round trip high supply utility token for the protocol
+    LFG. 
 */
 
 // File: @openzeppelin/contracts@4.6.0/utils/Context.sol
@@ -27,284 +40,6 @@ abstract contract Context {
     function _msgData() internal view virtual returns (bytes calldata) {
         return msg.data;
     }
-}
-
-// File: @openzeppelin/contracts@4.6.0/security/Pausable.sol
-
-
-// OpenZeppelin Contracts v4.4.1 (security/Pausable.sol)
-
-pragma solidity ^0.8.0;
-
-
-/**
- * @dev Contract module which allows children to implement an emergency stop
- * mechanism that can be triggered by an authorized account.
- *
- * This module is used through inheritance. It will make available the
- * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
- * the functions of your contract. Note that they will not be pausable by
- * simply including this module, only once the modifiers are put in place.
- */
-abstract contract Pausable is Context {
-    /**
-     * @dev Emitted when the pause is triggered by `account`.
-     */
-    event Paused(address account);
-
-    /**
-     * @dev Emitted when the pause is lifted by `account`.
-     */
-    event Unpaused(address account);
-
-    bool private _paused;
-
-    /**
-     * @dev Initializes the contract in unpaused state.
-     */
-    constructor() {
-        _paused = false;
-    }
-
-    /**
-     * @dev Returns true if the contract is paused, and false otherwise.
-     */
-    function paused() public view virtual returns (bool) {
-        return _paused;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is not paused.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    modifier whenNotPaused() {
-        require(!paused(), "Pausable: paused");
-        _;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is paused.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    modifier whenPaused() {
-        require(paused(), "Pausable: not paused");
-        _;
-    }
-
-    /**
-     * @dev Triggers stopped state.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    function _pause() internal virtual whenNotPaused {
-        _paused = true;
-        emit Paused(_msgSender());
-    }
-
-    /**
-     * @dev Returns to normal state.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    function _unpause() internal virtual whenPaused {
-        _paused = false;
-        emit Unpaused(_msgSender());
-    }
-}
-
-// File: @openzeppelin/contracts@4.6.0/access/Ownable.sol
-
-
-// OpenZeppelin Contracts v4.4.1 (access/Ownable.sol)
-
-pragma solidity ^0.8.0;
-
-
-/**
- * @dev Contract module which provides a basic access control mechanism, where
- * there is an account (an owner) that can be granted exclusive access to
- * specific functions.
- *
- * By default, the owner account will be the one that deploys the contract. This
- * can later be changed with {transferOwnership}.
- *
- * This module is used through inheritance. It will make available the modifier
- * `onlyOwner`, which can be applied to your functions to restrict their use to
- * the owner.
- */
-abstract contract Ownable is Context {
-    address private _owner;
-
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    /**
-     * @dev Initializes the contract setting the deployer as the initial owner.
-     */
-    constructor() {
-        _transferOwnership(_msgSender());
-    }
-
-    /**
-     * @dev Returns the address of the current owner.
-     */
-    function owner() public view virtual returns (address) {
-        return _owner;
-    }
-
-    /**
-     * @dev Throws if called by any account other than the owner.
-     */
-    modifier onlyOwner() {
-        require(owner() == _msgSender(), "Ownable: caller is not the owner");
-        _;
-    }
-
-    /**
-     * @dev Leaves the contract without owner. It will not be possible to call
-     * `onlyOwner` functions anymore. Can only be called by the current owner.
-     *
-     * NOTE: Renouncing ownership will leave the contract without an owner,
-     * thereby removing any functionality that is only available to the owner.
-     */
-    function renounceOwnership() public virtual onlyOwner {
-        _transferOwnership(address(0));
-    }
-
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Can only be called by the current owner.
-     */
-    function transferOwnership(address newOwner) public virtual onlyOwner {
-        require(newOwner != address(0), "Ownable: new owner is the zero address");
-        _transferOwnership(newOwner);
-    }
-
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Internal function without access restriction.
-     */
-    function _transferOwnership(address newOwner) internal virtual {
-        address oldOwner = _owner;
-        _owner = newOwner;
-        emit OwnershipTransferred(oldOwner, newOwner);
-    }
-}
-
-// File: Blacklist.sol
-
-
-pragma solidity ^0.8.10;
-
-
-/**
- * @title Blacklist
- * @dev The Blacklist contract has a blacklist of addresses, and provides basic authorization control functions.
- * @dev This simplifies the implementation of "user permissions".
- */
-contract Blacklist is Ownable {
-  mapping(address => bool) blacklist;
-  address[] public blacklistAddresses;
-
-  event BlacklistedAddressAdded(address addr);
-  event BlacklistedAddressRemoved(address addr);
-
-  /**
-   * @dev Throws if called by any account that's whitelist (a.k.a not blacklist)
-   */
-  modifier isBlacklisted() {
-    require(blacklist[msg.sender]);
-    _;
-  }
-
-  /**
-   * @dev Throws if called by any account that's blacklist.
-   */
-  modifier isNotBlacklisted() {
-    require(!blacklist[msg.sender]);
-    _;
-  }
-
-  /**
-   * @dev Add an address to the blacklist
-   * @param addr address
-   * @return success true if the address was added to the blacklist, false if the address was already in the blacklist
-   */
-  function addAddressToBlacklist(address addr) public onlyOwner returns (bool success) {
-    if (!blacklist[addr]) {
-      blacklistAddresses.push(addr);
-      blacklist[addr] = true;
-      emit BlacklistedAddressAdded(addr);
-      success = true;
-    }
-  }
-
-  /**
-   * @dev Add addresses to the blacklist
-   * @param addrs addresses
-   * @return success true if at least one address was added to the blacklist,
-   * false if all addresses were already in the blacklist
-   */
-  function addAddressesToBlacklist(address[] memory addrs) public onlyOwner returns (bool success) {
-    for (uint256 i = 0; i < addrs.length; i++) {
-      if (addAddressToBlacklist(addrs[i])) {
-        success = true;
-      }
-    }
-  }
-
-  /**
-   * @dev Remove an address from the blacklist
-   * @param addr address
-   * @return success true if the address was removed from the blacklist,
-   * false if the address wasn't in the blacklist in the first place
-   */
-  function removeAddressFromBlacklist(address addr) public onlyOwner returns (bool success) {
-    if (blacklist[addr]) {
-      blacklist[addr] = false;
-      for (uint256 i = 0; i < blacklistAddresses.length; i++) {
-        if (addr == blacklistAddresses[i]) {
-          delete blacklistAddresses[i];
-        }
-      }
-      emit BlacklistedAddressRemoved(addr);
-      success = true;
-    }
-  }
-
-  /**
-   * @dev Remove addresses from the blacklist
-   * @param addrs addresses
-   * @return success true if at least one address was removed from the blacklist,
-   * false if all addresses weren't in the blacklist in the first place
-   */
-  function removeAddressesFromBlacklist(address[] memory addrs)
-    public
-    onlyOwner
-    returns (bool success)
-  {
-    for (uint256 i = 0; i < addrs.length; i++) {
-      if (removeAddressFromBlacklist(addrs[i])) {
-        success = true;
-      }
-    }
-  }
-
-  /**
-   * @dev Get all blacklist wallet addresses
-   */
-  function getBlacklist() public view returns (address[] memory) {
-    return blacklistAddresses;
-  }
 }
 
 // File: @openzeppelin/contracts@4.6.0/token/ERC20/IERC20.sol
@@ -807,47 +542,14 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
     ) internal virtual {}
 }
 
-// File: Mancium.sol
+// File: Zeus.sol
 
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.4;
 
 
-
-
-
-uint8 constant NUM_DECIMALS = 2;
-
-//Total Supply 100000000, 100 million tokens
-uint256 constant TOTAL_AMOUNT = 100000000 * 1e2;
-
-contract Mancium is ERC20, Pausable, Ownable, Blacklist {
-    constructor() ERC20("Mancium", "MANC") {
-        _mint(owner(), TOTAL_AMOUNT);
-    }
-
-    function pause() public onlyOwner {
-        _pause();
-    }
-
-    function unpause() public onlyOwner {
-        _unpause();
-    }
-
-    function _beforeTokenTransfer(address from, address to, uint256 amount)
-        internal
-        whenNotPaused
-        override
-    {
-        // This blocks transfer, transferFrom, burn and burnFrom calls from and
-        // to blacklisted addresses
-        require(!blacklist[from], "From address is blacklisted");
-        require(!blacklist[to], "To address is blacklisted");
-
-        super._beforeTokenTransfer(from, to, amount);
-    }
-
-    function decimals() public view virtual override returns (uint8) {
-        return NUM_DECIMALS;
+contract GODZ is ERC20 {
+    constructor() ERC20("GODZ", "ZEUS") {
+        _mint(msg.sender, 100000 * 10 ** decimals());
     }
 }

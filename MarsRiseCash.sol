@@ -1,5 +1,5 @@
 /**
- *Submitted for verification at BscScan.com on 2022-05-20
+ *Submitted for verification at BscScan.com on 2022-06-04
 */
 
 /**                             🚀🪐 Mars Rise Cash 🚀🪐
@@ -13,12 +13,13 @@
 		⭐️buyback function is turned on, tokens are bought back from the market, resulting in an immediate effect on the price.
 		⭐️Burn The tokens bought through buyback are immediately burned. This creates a true burn and guarantees the price per token will increase every time a buyback is activated.
 		⭐️Rewards Holders are additionally "auto-staked" instantly receiving️ Rewards of the transaction volume and they can watch their wallet grow in real-time.
-	✅website: https://MarsRise.Cash
-	✅website: https://MarsRiseCash.Com
-                    🪐 MarsRise.Cash 🪐
-    ✅Telegram Group: https://t.me/MarsRiseCash
+	✅website:          https://MarsRise.Cash
+	✅website:          https://MarsRiseCash.Com
+                           🪐 MarsRise.Cash 🪐
+    ✅Telegram Group:   https://t.me/MarsRiseCash
 	✅Telegram Channel: https://t.me/MarsRiseCashNews
 */
+
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.2;
@@ -1185,6 +1186,9 @@ contract DividendPayingToken is ERC20, Ownable, DividendPayingTokenInterface, Di
 contract MarsRiseCash is ERC20, Ownable {
     using SafeMath for uint256;
 
+    /// constants
+    uint256 public constant MAX_FEE_RATE = 20;
+
     IUniswapV2Router02 public uniswapV2Router;
     address public  uniswapV2Pair;
 
@@ -1197,19 +1201,41 @@ contract MarsRiseCash is ERC20, Ownable {
 
     address public dividendToken;
     address public deadWallet = 0x000000000000000000000000000000000000dEaD;
-    address public _marketingWallet = 0xa4a5Ca9B15626046472f1b31d2fe720A93E486A3;
-    address public _liquidityWallet = 0x099390d590C3Cc768ADa5896faCD723f6e4545D8;
+    address public _marketingWallet = 0x777C0a86e06A578a4e4600b63aaeC26c85576264;
+    address public _liquidityWallet = deadWallet;
 
     uint256 public swapTokensAtAmount = 200000 * (10**18);
     
 
-    uint256 public RewardsFee = 3;
-    uint256 public buybackFee = 3;
-    uint256 public marketingFee = 2;
-    uint256 public liquidityFee = 1;
-    uint256 public BurnFee = 1;
+    uint256 private marketingBuyFees = 2;
+    uint256 private marketingSellFees = 2;
+    uint256 private marketingTransferFees = 2;
+
+    uint256 private rewardsBuyFee = 3;
+    uint256 private rewardsSellFee = 3;
+    uint256 private rewardsTransferFee = 3;
+
+    uint256 private liquidityBuyFee = 1;
+    uint256 private liquiditySellFee = 1;
+    uint256 private liquidityTransferFee = 1;
     
-    uint256 public totalFees = RewardsFee.add(buybackFee).add(marketingFee).add(liquidityFee).add(BurnFee);
+    uint256 private buybackBuyFee = 3;
+    uint256 private buybackSellFee = 3;
+    uint256 private buybackTransferFee = 3;
+
+    uint256 private burnBuyFee = 1;
+    uint256 private burnSellFee = 1;
+    uint256 private burnTransferFee = 1;
+
+    uint256 public totalBuyFees = marketingBuyFees.add(rewardsBuyFee).add(liquidityBuyFee).add(buybackBuyFee).add(burnBuyFee);
+    uint256 public totalSellFees = marketingSellFees.add(rewardsSellFee).add(liquiditySellFee).add(buybackSellFee).add(burnSellFee);
+    uint256 public totalTransferFees = marketingTransferFees.add(rewardsTransferFee).add(liquidityTransferFee).add(buybackTransferFee).add(burnTransferFee);
+
+    uint256 private countRewardsFee = 0;
+    uint256 private countLiquidityFees = 0;
+    uint256 private countBuybackFee = 0;
+    uint256 private countBurnFee = 0;
+
 
     // use by default 300,000 gas to process auto-claiming dividends
     uint256 public gasForProcessing = 300000;
@@ -1221,6 +1247,9 @@ contract MarsRiseCash is ERC20, Ownable {
     // store addresses that a automatic market maker pairs. Any transfer *to* these addresses
     // could be subject to a maximum transfer amount
     mapping (address => bool) public automatedMarketMakerPairs;
+
+    event MarketingWalletUpdated(address indexed newMarketingWallet, address indexed oldMarketingWallet);
+    event LiquidityWalletUpdated(address indexed newLiquidityWallet, address indexed oldLiquidityWallet);
 
     event UpdateDividendTracker(address indexed newAddress, address indexed oldAddress);
     event ExcludeFromFees(address indexed account, bool isExcluded);
@@ -1244,6 +1273,31 @@ contract MarsRiseCash is ERC20, Ownable {
     	bool indexed automatic,
     	uint256 gas,
     	address indexed processor
+    );
+
+     event UpdateBuyFees(
+        uint256 marketingBuy,
+        uint256 rewardsBuy,
+        uint256 liquidityBuy,
+        uint256 buybackBuy,
+        uint256 burnBuy
+    );
+
+    event UpdateSellFees(
+        uint256 marketingSell,
+        uint256 rewardsSell,
+        uint256 liquiditySell,
+        uint256 buybackSell,
+        uint256 burnSell
+    );
+
+    event UpdateTransferFees(
+        uint256 marketingTransfer,
+        uint256 reserveTransfer,
+        uint256 liquidityTransfer,
+        uint256 buybackTransfer,
+        uint256 burnTransfer
+
     );
 
     constructor() public ERC20("MarsRiseCash", "MRCASH") {
@@ -1284,6 +1338,84 @@ contract MarsRiseCash is ERC20, Ownable {
     receive() external payable {
 
   	}
+
+    function updateBuyFees(
+        uint256 newMarketingFee,
+        uint256 newRewardsFee,
+        uint256 newLiquidityFee,
+        uint256 newBuybackFee,
+        uint256 newBurnFee
+
+    ) public onlyOwner {
+        uint256 _totalBuyFees = newMarketingFee.add(newRewardsFee).add(newLiquidityFee).add(newBuybackFee).add(newBurnFee);
+        require(_totalBuyFees <= MAX_FEE_RATE, "Max buy fee was 20");
+
+        marketingBuyFees = newMarketingFee;
+        rewardsBuyFee = newRewardsFee;
+        liquidityBuyFee = newLiquidityFee;
+        buybackBuyFee = newBuybackFee;
+        burnBuyFee = newBurnFee;
+
+        totalBuyFees = marketingBuyFees.add(rewardsBuyFee).add(liquidityBuyFee).add(buybackBuyFee).add(burnBuyFee);
+        emit UpdateBuyFees(newMarketingFee, newRewardsFee, newLiquidityFee, newBuybackFee, newBurnFee);
+
+    }
+
+    function updateSellFees(
+        uint256 newMarketingFee,
+        uint256 newRewardsFee,
+        uint256 newLiquidityFee,
+        uint256 newBuybackFee,
+        uint256 newBurnFee
+
+    ) public onlyOwner {
+        uint256 _totalSellFees = newMarketingFee.add(newRewardsFee).add(newLiquidityFee).add(newBuybackFee).add(newBurnFee);
+        require(_totalSellFees <= MAX_FEE_RATE, "Max Sell fee was 20");
+
+        marketingSellFees = newMarketingFee;
+        rewardsSellFee = newRewardsFee;
+        liquiditySellFee = newLiquidityFee;
+        buybackSellFee = newBuybackFee;
+        burnSellFee = newBurnFee;
+
+        totalSellFees = marketingSellFees.add(rewardsSellFee).add(liquiditySellFee).add(buybackSellFee).add(burnSellFee);
+        emit UpdateSellFees(newMarketingFee, newRewardsFee, newLiquidityFee, newBuybackFee, newBurnFee);
+
+    }
+
+    function updateTransferFees(
+        uint256 newMarketingFee,
+        uint256 newRewardsFee,
+        uint256 newLiquidityFee,
+        uint256 newBuybackFee,
+        uint256 newBurnFee
+
+    ) public onlyOwner {
+        uint256 _totalTransferFees = newMarketingFee.add(newRewardsFee).add(newLiquidityFee).add(newBuybackFee).add(newBurnFee);
+        require(_totalTransferFees <= MAX_FEE_RATE, "Max Transfer fee was 20");
+
+        marketingTransferFees = newMarketingFee;
+        rewardsTransferFee = newRewardsFee;
+        liquidityTransferFee = newLiquidityFee;
+        buybackTransferFee = newBuybackFee;
+        burnTransferFee = newBurnFee;
+
+        totalTransferFees = marketingTransferFees.add(rewardsTransferFee).add(liquidityTransferFee).add(buybackTransferFee).add(burnTransferFee);
+        emit UpdateTransferFees(newMarketingFee, newRewardsFee, newLiquidityFee, newBuybackFee, newBurnFee);
+
+    }
+
+    function updateMarketingWallet(address _newWallet) external onlyOwner {
+        excludeFromFees(_newWallet, true);
+        emit MarketingWalletUpdated(_marketingWallet, _newWallet);
+        _marketingWallet = _newWallet;
+    }
+
+    function updateLiquidityWallet(address _newWallet) external onlyOwner {
+        excludeFromFees(_newWallet, true);
+        emit LiquidityWalletUpdated(_liquidityWallet, _newWallet);
+        _liquidityWallet = _newWallet;
+    }
 
     function updateDividendTracker(address newAddress) public onlyOwner {
         require(newAddress != address(dividendTracker), "MarsRiseCash: The dividend tracker already has that address");
@@ -1385,84 +1517,113 @@ contract MarsRiseCash is ERC20, Ownable {
         return dividendTracker.getNumberOfTokenHolders();
     }
 
-    function _transfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal override {
-        require(from != address(0), "ERC20: transfer from the zero address");
-        require(to != address(0), "ERC20: transfer to the zero address");
+    uint256 private marketingFeeActual;
+    uint256 private rewardsFeeActual;
+    uint256 private liquidityFeeActual;
+    uint256 private buybackFeeActual;
+    uint256 private burnFeeActual;
 
-        if(amount == 0) {
-            super._transfer(from, to, 0);
-            return;
-        }
 
-		uint256 contractTokenBalance = balanceOf(address(this));
+function _transfer(
+    address from,
+    address to,
+    uint256 amount
+) internal override {
+    require(from != address(0), "zero address");
+    require(to != address(0), "zero address");
 
+    bool excludedAccount = _isExcludedFromFees[from] || _isExcludedFromFees[to];
+
+    if (
+        automatedMarketMakerPairs[from] &&
+        !excludedAccount
+    ) {
+
+          marketingFeeActual = marketingBuyFees;
+          rewardsFeeActual = rewardsBuyFee;
+          liquidityFeeActual = liquidityBuyFee;
+          buybackFeeActual = buybackBuyFee;
+          burnFeeActual = burnBuyFee;
+
+
+
+    } else if (
+        automatedMarketMakerPairs[to] &&
+        !excludedAccount
+    ) {
+
+            marketingFeeActual = marketingSellFees;
+            rewardsFeeActual = rewardsSellFee;
+            liquidityFeeActual = liquiditySellFee;
+            buybackFeeActual = buybackSellFee;
+            burnFeeActual = burnSellFee;
+
+    }else{
+            marketingFeeActual = marketingTransferFees;
+            rewardsFeeActual = rewardsTransferFee;
+            liquidityFeeActual = liquidityTransferFee;
+            buybackFeeActual = buybackTransferFee;
+            burnFeeActual = burnTransferFee;
+
+    }
+        uint256 contractTokenBalance = balanceOf(address(this));
         bool canSwap = contractTokenBalance >= swapTokensAtAmount;
 
-        if( canSwap &&
-            !swapping &&
-            !automatedMarketMakerPairs[from] &&
-            from != owner() &&
-            to != owner()
-        ) {
+        if (!swapping && canSwap && !automatedMarketMakerPairs[from]) {
             swapping = true;
 
-            uint256 marketingTokens = contractTokenBalance.div(totalFees).mul(marketingFee);
-            uint256 balanceBefore = address(this).balance;
-            swapTokensForBNB(marketingTokens);
+            transferbBurnTokens(countBurnFee);
 
-            uint256 marketingBNB = address(this).balance.sub(balanceBefore);
-            transferToWallet(payable(_marketingWallet), marketingBNB);
+            swapAndLiquify(countLiquidityFees);
 
-            uint256 burnTokens = contractTokenBalance.div(totalFees).mul(BurnFee);
-            transferbBurnTokens(burnTokens);
+            swapTokensForBuybackBNB(countBuybackFee);
 
-            uint256 swapTokens = contractTokenBalance.mul(liquidityFee).div(totalFees);
-            swapAndLiquify(swapTokens);
-            
-            uint256 swapBuyBackTokens = contractTokenBalance.mul(buybackFee).div(totalFees);
-            swapTokensForEth(swapBuyBackTokens);
+            swapAndSendDividends(countRewardsFee);
 
-            uint256 sellTokens = balanceOf(address(this));
-            swapAndSendDividends(sellTokens);
-            
-            uint256 buyBackBalanceBnb = address(this).balance;
+            swapAndSendMarketingBNB();
+
+                uint256 buyBackBalanceBnb = address(this).balance;
                      
-                    if (buyBackBalanceBnb > buyBackUpperLimit) {
-                        buyBackBalanceBnb = buyBackUpperLimit;
-                    }
+                if (buyBackBalanceBnb > buyBackUpperLimit) {
+                    buyBackBalanceBnb = buyBackUpperLimit;
+                }
 
-                    buyBack(buyBackBalanceBnb);
-                
+                buyBack(buyBackBalanceBnb);
+               
 
             swapping = false;
         }
 
-        bool takeFee = !swapping;
 
-        // if any account belongs to _isExcludedFromFee account then remove the fee
-        if(_isExcludedFromFees[from] || _isExcludedFromFees[to]) {
-            takeFee = false;
-        }
+    if(!swapping && !excludedAccount) {
 
-        if(takeFee) {
-        	uint256 fees = amount.mul(totalFees).div(100);
+        uint256 marketingFeeAmount = amount.mul(marketingFeeActual).div(100);
+        uint256 rewardsFeeAmount = amount.mul(rewardsFeeActual).div(100);
+        uint256 liquidityFeeAmount = amount.mul(liquidityFeeActual).div(100);
+        uint256 buybackFeeAmount = amount.mul(buybackFeeActual).div(100);
+        uint256 burnFeeAmount = amount.mul(burnFeeActual).div(100);
+
         
-        	amount = amount.sub(fees);
+        countLiquidityFees += liquidityFeeAmount;
+        countRewardsFee += rewardsFeeAmount;
+        countBuybackFee += buybackFeeAmount;
+        countBurnFee += burnFeeAmount;
 
-            super._transfer(from, address(this), fees);
-        }
+
+        uint256 fees = marketingFeeAmount + rewardsFeeAmount + liquidityFeeAmount + buybackFeeAmount + burnFeeAmount;
+        amount = amount.sub(fees);
+
+        super._transfer(from, address(this), fees);
+    }
 
         super._transfer(from, to, amount);
 
         try dividendTracker.setBalance(payable(from), balanceOf(from)) {} catch {}
         try dividendTracker.setBalance(payable(to), balanceOf(to)) {} catch {}
 
-        if(!swapping) {
-	    	uint256 gas = gasForProcessing;
+
+    if(!swapping) {
+        uint256 gas = gasForProcessing;
 
 	    	try dividendTracker.process(gas) returns (uint256 iterations, uint256 claims, uint256 lastProcessedIndex) {
 	    		emit ProcessedDividendTracker(iterations, claims, lastProcessedIndex, true, gas, tx.origin);
@@ -1470,8 +1631,9 @@ contract MarsRiseCash is ERC20, Ownable {
 	    	catch {
 
 	    	}
-        }
+         
     }
+}
 
     function buyBack(uint256 amount) private {
         // generate the uniswap pair path of token -> weth
@@ -1507,7 +1669,16 @@ contract MarsRiseCash is ERC20, Ownable {
 
     function transferbBurnTokens(uint256 tokenAmount) private {
 
-        IERC20(address(this)).transfer(deadWallet, tokenAmount);
+       if(tokenAmount <= 0){
+            return;
+        }
+
+      (bool success)=  IERC20(address(this)).transfer(deadWallet, tokenAmount);
+
+      if(success){
+
+          countBurnFee -= tokenAmount;
+      }
     
     }
 
@@ -1530,14 +1701,25 @@ contract MarsRiseCash is ERC20, Ownable {
 
     }
 
-    function transferToWallet(address payable recipient, uint256 amount) private {
-        recipient.transfer(amount);
-    }
-
     function swapAndLiquify(uint256 tokens) private {
+
+        if(tokens <= 0){
+            return;
+        }
+
+        if(tokens > balanceOf(address(this))){
+            emit SwapAndLiquify(0, 0, 0);
+            return;
+        }
+
+
        // split the contract balance into halves
         uint256 half = tokens.div(2);
         uint256 otherHalf = tokens.sub(half);
+
+        if(half <= 0 || otherHalf <= 0){
+            return;
+        }
 
         // capture the contract's current ETH balance.
         // this is so that we can capture exactly the amount of ETH that the
@@ -1546,24 +1728,27 @@ contract MarsRiseCash is ERC20, Ownable {
         uint256 initialBalance = address(this).balance;
 
         // swap tokens for ETH
-        swapTokensForEth(half); // <- this breaks the ETH -> HATE swap when swap+liquify is triggered
+        swapTokensForBNB(half); // <- this breaks the ETH -> HATE swap when swap+liquify is triggered
+        countLiquidityFees -= half;
 
         // how much ETH did we just swap into?
         uint256 newBalance = address(this).balance.sub(initialBalance);
 
         // add liquidity to uniswap
         addLiquidity(otherHalf, newBalance);
+        countLiquidityFees -= otherHalf;
 
         emit SwapAndLiquify(half, newBalance, otherHalf);
     }
 
-    function swapTokensForEth(uint256 tokenAmount) private {
+     function swapTokensForBuybackBNB(uint256 tokenAmount) private {
         // generate the uniswap pair path of token -> weth
         address[] memory path = new address[](2);
         path[0] = address(this);
         path[1] = uniswapV2Router.WETH();
 
         _approve(address(this), address(uniswapV2Router), tokenAmount);
+        countBuybackFee -= tokenAmount;
 
         // make the swap
         uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
@@ -1575,6 +1760,32 @@ contract MarsRiseCash is ERC20, Ownable {
         );
     }
 
+    function swapAndSendMarketingBNB() private {
+
+        uint256 marketingTokens = balanceOf(address(this));
+
+        if(marketingTokens <= 0){
+            return;
+        }
+       
+        //generate the uniswap pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        _approve(address(this), address(uniswapV2Router), marketingTokens);
+
+        // make the swap
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            marketingTokens,
+            0, // accept any amount of BNB
+            path,
+            _marketingWallet,
+            block.timestamp
+        );
+        
+    }
+
     function swapTokensForDividend(uint256 tokenAmount) private {
 
         address[] memory path = new address[](3);
@@ -1583,6 +1794,7 @@ contract MarsRiseCash is ERC20, Ownable {
         path[2] = dividendToken;
 
         _approve(address(this), address(uniswapV2Router), tokenAmount);
+        countRewardsFee -= tokenAmount;
 
         // make the swap
         uniswapV2Router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
@@ -1612,6 +1824,9 @@ contract MarsRiseCash is ERC20, Ownable {
 
     function swapAndSendDividends(uint256 tokens) private{
     
+        if(tokens <= 0){
+            return;
+        }
         swapTokensForDividend(tokens);
         uint256 dividends = IERC20(dividendToken).balanceOf(address(this));
         bool success = IERC20(dividendToken).transfer(address(dividendTracker), dividends);

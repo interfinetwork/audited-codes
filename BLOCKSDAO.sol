@@ -1,525 +1,75 @@
 /**
- *Submitted for verification at Etherscan.io on 2021-11-21
+ *Submitted for verification at Etherscan.io on 2022-06-14
 */
 
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
-
-/**
- * @dev External interface of AccessControl declared to support ERC165 detection.
- */
-interface IAccessControl {
-    /**
-     * @dev Emitted when `newAdminRole` is set as ``role``'s admin role, replacing `previousAdminRole`
-     *
-     * `DEFAULT_ADMIN_ROLE` is the starting admin for all roles, despite
-     * {RoleAdminChanged} not being emitted signaling this.
-     *
-     * _Available since v3.1._
-     */
-    event RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole);
-
-    /**
-     * @dev Emitted when `account` is granted `role`.
-     *
-     * `sender` is the account that originated the contract call, an admin role
-     * bearer except when using {AccessControl-_setupRole}.
-     */
-    event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender);
-
-    /**
-     * @dev Emitted when `account` is revoked `role`.
-     *
-     * `sender` is the account that originated the contract call:
-     *   - if using `revokeRole`, it is the admin role bearer
-     *   - if using `renounceRole`, it is the role bearer (i.e. `account`)
-     */
-    event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender);
-
-    /**
-     * @dev Returns `true` if `account` has been granted `role`.
-     */
-    function hasRole(bytes32 role, address account) external view returns (bool);
-
-    /**
-     * @dev Returns the admin role that controls `role`. See {grantRole} and
-     * {revokeRole}.
-     *
-     * To change a role's admin, use {AccessControl-_setRoleAdmin}.
-     */
-    function getRoleAdmin(bytes32 role) external view returns (bytes32);
-
-    /**
-     * @dev Grants `role` to `account`.
-     *
-     * If `account` had not been already granted `role`, emits a {RoleGranted}
-     * event.
-     *
-     * Requirements:
-     *
-     * - the caller must have ``role``'s admin role.
-     */
-    function grantRole(bytes32 role, address account) external;
-
-    /**
-     * @dev Revokes `role` from `account`.
-     *
-     * If `account` had been granted `role`, emits a {RoleRevoked} event.
-     *
-     * Requirements:
-     *
-     * - the caller must have ``role``'s admin role.
-     */
-    function revokeRole(bytes32 role, address account) external;
-
-    /**
-     * @dev Revokes `role` from the calling account.
-     *
-     * Roles are often managed via {grantRole} and {revokeRole}: this function's
-     * purpose is to provide a mechanism for accounts to lose their privileges
-     * if they are compromised (such as when a trusted device is misplaced).
-     *
-     * If the calling account had been granted `role`, emits a {RoleRevoked}
-     * event.
-     *
-     * Requirements:
-     *
-     * - the caller must be `account`.
-     */
-    function renounceRole(bytes32 role, address account) external;
-}
+pragma solidity 0.8.13;
 
 
-// File @openzeppelin/contracts/utils/Context.sol@v4.3.3
-
-pragma solidity ^0.8.0;
-
-/**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
 abstract contract Context {
     function _msgSender() internal view virtual returns (address) {
         return msg.sender;
     }
 
     function _msgData() internal view virtual returns (bytes calldata) {
+        this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
         return msg.data;
     }
 }
 
+abstract contract Ownable is Context {
+    address private _owner;
 
-// File @openzeppelin/contracts/utils/Strings.sol@v4.3.3
-
-
-pragma solidity ^0.8.0;
-
-/**
- * @dev String operations.
- */
-library Strings {
-    bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     /**
-     * @dev Converts a `uint256` to its ASCII `string` decimal representation.
+     * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    function toString(uint256 value) internal pure returns (string memory) {
-        // Inspired by OraclizeAPI's implementation - MIT licence
-        // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
-
-        if (value == 0) {
-            return "0";
-        }
-        uint256 temp = value;
-        uint256 digits;
-        while (temp != 0) {
-            digits++;
-            temp /= 10;
-        }
-        bytes memory buffer = new bytes(digits);
-        while (value != 0) {
-            digits -= 1;
-            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
-            value /= 10;
-        }
-        return string(buffer);
+    constructor () {
+        address msgSender = _msgSender();
+        _owner = msgSender;
+        emit OwnershipTransferred(address(0), msgSender);
     }
 
     /**
-     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation.
+     * @dev Returns the address of the current owner.
      */
-    function toHexString(uint256 value) internal pure returns (string memory) {
-        if (value == 0) {
-            return "0x00";
-        }
-        uint256 temp = value;
-        uint256 length = 0;
-        while (temp != 0) {
-            length++;
-            temp >>= 8;
-        }
-        return toHexString(value, length);
+    function owner() public view virtual returns (address) {
+        return _owner;
     }
 
     /**
-     * @dev Converts a `uint256` to its ASCII `string` hexadecimal representation with fixed length.
+     * @dev Throws if called by any account other than the owner.
      */
-    function toHexString(uint256 value, uint256 length) internal pure returns (string memory) {
-        bytes memory buffer = new bytes(2 * length + 2);
-        buffer[0] = "0";
-        buffer[1] = "x";
-        for (uint256 i = 2 * length + 1; i > 1; --i) {
-            buffer[i] = _HEX_SYMBOLS[value & 0xf];
-            value >>= 4;
-        }
-        require(value == 0, "Strings: hex length insufficient");
-        return string(buffer);
-    }
-}
-
-
-// File @openzeppelin/contracts/utils/introspection/IERC165.sol@v4.3.3
-
-
-pragma solidity ^0.8.0;
-
-/**
- * @dev Interface of the ERC165 standard, as defined in the
- * https://eips.ethereum.org/EIPS/eip-165[EIP].
- *
- * Implementers can declare support of contract interfaces, which can then be
- * queried by others ({ERC165Checker}).
- *
- * For an implementation, see {ERC165}.
- */
-interface IERC165 {
-    /**
-     * @dev Returns true if this contract implements the interface defined by
-     * `interfaceId`. See the corresponding
-     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
-     * to learn more about how these ids are created.
-     *
-     * This function call must use less than 30 000 gas.
-     */
-    function supportsInterface(bytes4 interfaceId) external view returns (bool);
-}
-
-
-// File @openzeppelin/contracts/utils/introspection/ERC165.sol@v4.3.3
-
-
-pragma solidity ^0.8.0;
-
-/**
- * @dev Implementation of the {IERC165} interface.
- *
- * Contracts that want to implement ERC165 should inherit from this contract and override {supportsInterface} to check
- * for the additional interface id that will be supported. For example:
- *
- * ```solidity
- * function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
- *     return interfaceId == type(MyInterface).interfaceId || super.supportsInterface(interfaceId);
- * }
- * ```
- *
- * Alternatively, {ERC165Storage} provides an easier to use but more expensive implementation.
- */
-abstract contract ERC165 is IERC165 {
-    /**
-     * @dev See {IERC165-supportsInterface}.
-     */
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IERC165).interfaceId;
-    }
-}
-
-
-// File @openzeppelin/contracts/access/AccessControl.sol@v4.3.3
-
-pragma solidity ^0.8.0;
-
-
-/**
- * @dev Contract module that allows children to implement role-based access
- * control mechanisms. This is a lightweight version that doesn't allow enumerating role
- * members except through off-chain means by accessing the contract event logs. Some
- * applications may benefit from on-chain enumerability, for those cases see
- * {AccessControlEnumerable}.
- *
- * Roles are referred to by their `bytes32` identifier. These should be exposed
- * in the external API and be unique. The best way to achieve this is by
- * using `public constant` hash digests:
- *
- * ```
- * bytes32 public constant MY_ROLE = keccak256("MY_ROLE");
- * ```
- *
- * Roles can be used to represent a set of permissions. To restrict access to a
- * function call, use {hasRole}:
- *
- * ```
- * function foo() public {
- *     require(hasRole(MY_ROLE, msg.sender));
- *     ...
- * }
- * ```
- *
- * Roles can be granted and revoked dynamically via the {grantRole} and
- * {revokeRole} functions. Each role has an associated admin role, and only
- * accounts that have a role's admin role can call {grantRole} and {revokeRole}.
- *
- * By default, the admin role for all roles is `DEFAULT_ADMIN_ROLE`, which means
- * that only accounts with this role will be able to grant or revoke other
- * roles. More complex role relationships can be created by using
- * {_setRoleAdmin}.
- *
- * WARNING: The `DEFAULT_ADMIN_ROLE` is also its own admin: it has permission to
- * grant and revoke this role. Extra precautions should be taken to secure
- * accounts that have been granted it.
- */
-abstract contract AccessControl is Context, IAccessControl, ERC165 {
-    struct RoleData {
-        mapping(address => bool) members;
-        bytes32 adminRole;
-    }
-
-    mapping(bytes32 => RoleData) private _roles;
-
-    bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
-
-    /**
-     * @dev Modifier that checks that an account has a specific role. Reverts
-     * with a standardized message including the required role.
-     *
-     * The format of the revert reason is given by the following regular expression:
-     *
-     *  /^AccessControl: account (0x[0-9a-f]{40}) is missing role (0x[0-9a-f]{64})$/
-     *
-     * _Available since v4.1._
-     */
-    modifier onlyRole(bytes32 role) {
-        _checkRole(role, _msgSender());
+    modifier onlyOwner() {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
         _;
     }
 
     /**
-     * @dev See {IERC165-supportsInterface}.
+     * @dev Leaves the contract without owner. It will not be possible to call
+     * `onlyOwner` functions anymore. Can only be called by the current owner.
+     *
+     * NOTE: Renouncing ownership will leave the contract without an owner,
+     * thereby removing any functionality that is only available to the owner.
      */
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IAccessControl).interfaceId || super.supportsInterface(interfaceId);
+    function renounceOwnership() public virtual onlyOwner {
+        emit OwnershipTransferred(_owner, address(0));
+        _owner = address(0);
     }
 
     /**
-     * @dev Returns `true` if `account` has been granted `role`.
+     * @dev Transfers ownership of the contract to a new account (`newOwner`).
+     * Can only be called by the current owner.
      */
-    function hasRole(bytes32 role, address account) public view override returns (bool) {
-        return _roles[role].members[account];
-    }
-
-    /**
-     * @dev Revert with a standard message if `account` is missing `role`.
-     *
-     * The format of the revert reason is given by the following regular expression:
-     *
-     *  /^AccessControl: account (0x[0-9a-f]{40}) is missing role (0x[0-9a-f]{64})$/
-     */
-    function _checkRole(bytes32 role, address account) internal view {
-        if (!hasRole(role, account)) {
-            revert(
-                string(
-                    abi.encodePacked(
-                        "AccessControl: account ",
-                        Strings.toHexString(uint160(account), 20),
-                        " is missing role ",
-                        Strings.toHexString(uint256(role), 32)
-                    )
-                )
-            );
-        }
-    }
-
-    /**
-     * @dev Returns the admin role that controls `role`. See {grantRole} and
-     * {revokeRole}.
-     *
-     * To change a role's admin, use {_setRoleAdmin}.
-     */
-    function getRoleAdmin(bytes32 role) public view override returns (bytes32) {
-        return _roles[role].adminRole;
-    }
-
-    /**
-     * @dev Grants `role` to `account`.
-     *
-     * If `account` had not been already granted `role`, emits a {RoleGranted}
-     * event.
-     *
-     * Requirements:
-     *
-     * - the caller must have ``role``'s admin role.
-     */
-    function grantRole(bytes32 role, address account) public virtual override onlyRole(getRoleAdmin(role)) {
-        _grantRole(role, account);
-    }
-
-    /**
-     * @dev Revokes `role` from `account`.
-     *
-     * If `account` had been granted `role`, emits a {RoleRevoked} event.
-     *
-     * Requirements:
-     *
-     * - the caller must have ``role``'s admin role.
-     */
-    function revokeRole(bytes32 role, address account) public virtual override onlyRole(getRoleAdmin(role)) {
-        _revokeRole(role, account);
-    }
-
-    /**
-     * @dev Revokes `role` from the calling account.
-     *
-     * Roles are often managed via {grantRole} and {revokeRole}: this function's
-     * purpose is to provide a mechanism for accounts to lose their privileges
-     * if they are compromised (such as when a trusted device is misplaced).
-     *
-     * If the calling account had been granted `role`, emits a {RoleRevoked}
-     * event.
-     *
-     * Requirements:
-     *
-     * - the caller must be `account`.
-     */
-    function renounceRole(bytes32 role, address account) public virtual override {
-        require(account == _msgSender(), "AccessControl: can only renounce roles for self");
-
-        _revokeRole(role, account);
-    }
-
-    /**
-     * @dev Grants `role` to `account`.
-     *
-     * If `account` had not been already granted `role`, emits a {RoleGranted}
-     * event. Note that unlike {grantRole}, this function doesn't perform any
-     * checks on the calling account.
-     *
-     * [WARNING]
-     * ====
-     * This function should only be called from the constructor when setting
-     * up the initial roles for the system.
-     *
-     * Using this function in any other way is effectively circumventing the admin
-     * system imposed by {AccessControl}.
-     * ====
-     */
-    function _setupRole(bytes32 role, address account) internal virtual {
-        _grantRole(role, account);
-    }
-
-    /**
-     * @dev Sets `adminRole` as ``role``'s admin role.
-     *
-     * Emits a {RoleAdminChanged} event.
-     */
-    function _setRoleAdmin(bytes32 role, bytes32 adminRole) internal virtual {
-        bytes32 previousAdminRole = getRoleAdmin(role);
-        _roles[role].adminRole = adminRole;
-        emit RoleAdminChanged(role, previousAdminRole, adminRole);
-    }
-
-    function _grantRole(bytes32 role, address account) private {
-        if (!hasRole(role, account)) {
-            _roles[role].members[account] = true;
-            emit RoleGranted(role, account, _msgSender());
-        }
-    }
-
-    function _revokeRole(bytes32 role, address account) private {
-        if (hasRole(role, account)) {
-            _roles[role].members[account] = false;
-            emit RoleRevoked(role, account, _msgSender());
-        }
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        emit OwnershipTransferred(_owner, newOwner);
+        _owner = newOwner;
     }
 }
 
-
-// File @openzeppelin/contracts/security/ReentrancyGuard.sol@v4.3.3
-
-pragma solidity ^0.8.0;
-
-/**
- * @dev Contract module that helps prevent reentrant calls to a function.
- *
- * Inheriting from `ReentrancyGuard` will make the {nonReentrant} modifier
- * available, which can be applied to functions to make sure there are no nested
- * (reentrant) calls to them.
- *
- * Note that because there is a single `nonReentrant` guard, functions marked as
- * `nonReentrant` may not call one another. This can be worked around by making
- * those functions `private`, and then adding `external` `nonReentrant` entry
- * points to them.
- *
- * TIP: If you would like to learn more about reentrancy and alternative ways
- * to protect against it, check out our blog post
- * https://blog.openzeppelin.com/reentrancy-after-istanbul/[Reentrancy After Istanbul].
- */
-abstract contract ReentrancyGuard {
-    // Booleans are more expensive than uint256 or any type that takes up a full
-    // word because each write operation emits an extra SLOAD to first read the
-    // slot's contents, replace the bits taken up by the boolean, and then write
-    // back. This is the compiler's defense against contract upgrades and
-    // pointer aliasing, and it cannot be disabled.
-
-    // The values being non-zero value makes deployment a bit more expensive,
-    // but in exchange the refund on every call to nonReentrant will be lower in
-    // amount. Since refunds are capped to a percentage of the total
-    // transaction's gas, it is best to keep them low in cases like this one, to
-    // increase the likelihood of the full refund coming into effect.
-    uint256 private constant _NOT_ENTERED = 1;
-    uint256 private constant _ENTERED = 2;
-
-    uint256 private _status;
-
-    constructor() {
-        _status = _NOT_ENTERED;
-    }
-
-    /**
-     * @dev Prevents a contract from calling itself, directly or indirectly.
-     * Calling a `nonReentrant` function from another `nonReentrant`
-     * function is not supported. It is possible to prevent this from happening
-     * by making the `nonReentrant` function external, and make it call a
-     * `private` function that does the actual work.
-     */
-    modifier nonReentrant() {
-        // On the first call to nonReentrant, _notEntered will be true
-        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
-
-        // Any calls to nonReentrant after this point will fail
-        _status = _ENTERED;
-
-        _;
-
-        // By storing the original value once again, a refund is triggered (see
-        // https://eips.ethereum.org/EIPS/eip-2200)
-        _status = _NOT_ENTERED;
-    }
-}
-
-
-// File @openzeppelin/contracts/token/ERC20/IERC20.sol@v4.3.3
-
-pragma solidity ^0.8.0;
-
-/**
- * @dev Interface of the ERC20 standard as defined in the EIP.
- */
 interface IERC20 {
     /**
      * @dev Returns the amount of tokens in existence.
@@ -574,11 +124,7 @@ interface IERC20 {
      *
      * Emits a {Transfer} event.
      */
-    function transferFrom(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
 
     /**
      * @dev Emitted when `value` tokens are moved from one account (`from`) to
@@ -595,14 +141,6 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-
-// File @openzeppelin/contracts/utils/Address.sol@v4.3.3
-
-pragma solidity ^0.8.0;
-
-/**
- * @dev Collection of functions related to the address type
- */
 library Address {
     /**
      * @dev Returns true if `account` is a contract.
@@ -627,9 +165,8 @@ library Address {
         // constructor execution.
 
         uint256 size;
-        assembly {
-            size := extcodesize(account)
-        }
+        // solhint-disable-next-line no-inline-assembly
+        assembly { size := extcodesize(account) }
         return size > 0;
     }
 
@@ -652,13 +189,14 @@ library Address {
     function sendValue(address payable recipient, uint256 amount) internal {
         require(address(this).balance >= amount, "Address: insufficient balance");
 
-        (bool success, ) = recipient.call{value: amount}("");
+        // solhint-disable-next-line avoid-low-level-calls, avoid-call-value
+        (bool success, ) = recipient.call{ value: amount }("");
         require(success, "Address: unable to send value, recipient may have reverted");
     }
 
     /**
      * @dev Performs a Solidity function call using a low level `call`. A
-     * plain `call` is an unsafe replacement for a function call: use this
+     * plain`call` is an unsafe replacement for a function call: use this
      * function instead.
      *
      * If `target` reverts with a revert reason, it is bubbled up by this
@@ -675,7 +213,7 @@ library Address {
      * _Available since v3.1._
      */
     function functionCall(address target, bytes memory data) internal returns (bytes memory) {
-        return functionCall(target, data, "Address: low-level call failed");
+      return functionCall(target, data, "Address: low-level call failed");
     }
 
     /**
@@ -684,11 +222,7 @@ library Address {
      *
      * _Available since v3.1._
      */
-    function functionCall(
-        address target,
-        bytes memory data,
-        string memory errorMessage
-    ) internal returns (bytes memory) {
+    function functionCall(address target, bytes memory data, string memory errorMessage) internal returns (bytes memory) {
         return functionCallWithValue(target, data, 0, errorMessage);
     }
 
@@ -703,11 +237,7 @@ library Address {
      *
      * _Available since v3.1._
      */
-    function functionCallWithValue(
-        address target,
-        bytes memory data,
-        uint256 value
-    ) internal returns (bytes memory) {
+    function functionCallWithValue(address target, bytes memory data, uint256 value) internal returns (bytes memory) {
         return functionCallWithValue(target, data, value, "Address: low-level call with value failed");
     }
 
@@ -717,17 +247,13 @@ library Address {
      *
      * _Available since v3.1._
      */
-    function functionCallWithValue(
-        address target,
-        bytes memory data,
-        uint256 value,
-        string memory errorMessage
-    ) internal returns (bytes memory) {
+    function functionCallWithValue(address target, bytes memory data, uint256 value, string memory errorMessage) internal returns (bytes memory) {
         require(address(this).balance >= value, "Address: insufficient balance for call");
         require(isContract(target), "Address: call to non-contract");
 
-        (bool success, bytes memory returndata) = target.call{value: value}(data);
-        return verifyCallResult(success, returndata, errorMessage);
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, bytes memory returndata) = target.call{ value: value }(data);
+        return _verifyCallResult(success, returndata, errorMessage);
     }
 
     /**
@@ -746,15 +272,12 @@ library Address {
      *
      * _Available since v3.3._
      */
-    function functionStaticCall(
-        address target,
-        bytes memory data,
-        string memory errorMessage
-    ) internal view returns (bytes memory) {
+    function functionStaticCall(address target, bytes memory data, string memory errorMessage) internal view returns (bytes memory) {
         require(isContract(target), "Address: static call to non-contract");
 
+        // solhint-disable-next-line avoid-low-level-calls
         (bool success, bytes memory returndata) = target.staticcall(data);
-        return verifyCallResult(success, returndata, errorMessage);
+        return _verifyCallResult(success, returndata, errorMessage);
     }
 
     /**
@@ -773,28 +296,15 @@ library Address {
      *
      * _Available since v3.4._
      */
-    function functionDelegateCall(
-        address target,
-        bytes memory data,
-        string memory errorMessage
-    ) internal returns (bytes memory) {
+    function functionDelegateCall(address target, bytes memory data, string memory errorMessage) internal returns (bytes memory) {
         require(isContract(target), "Address: delegate call to non-contract");
 
+        // solhint-disable-next-line avoid-low-level-calls
         (bool success, bytes memory returndata) = target.delegatecall(data);
-        return verifyCallResult(success, returndata, errorMessage);
+        return _verifyCallResult(success, returndata, errorMessage);
     }
 
-    /**
-     * @dev Tool to verifies that a low level call was successful, and revert if it wasn't, either by bubbling the
-     * revert reason using the provided one.
-     *
-     * _Available since v4.3._
-     */
-    function verifyCallResult(
-        bool success,
-        bytes memory returndata,
-        string memory errorMessage
-    ) internal pure returns (bytes memory) {
+    function _verifyCallResult(bool success, bytes memory returndata, string memory errorMessage) private pure returns(bytes memory) {
         if (success) {
             return returndata;
         } else {
@@ -802,6 +312,7 @@ library Address {
             if (returndata.length > 0) {
                 // The easiest way to bubble the revert reason is using memory via assembly
 
+                // solhint-disable-next-line no-inline-assembly
                 assembly {
                     let returndata_size := mload(returndata)
                     revert(add(32, returndata), returndata_size)
@@ -813,485 +324,419 @@ library Address {
     }
 }
 
+abstract contract ReentrancyGuard {
+    // Booleans are more expensive than uint256 or any type that takes up a full
+    // word because each write operation emits an extra SLOAD to first read the
+    // slot's contents, replace the bits taken up by the boolean, and then write
+    // back. This is the compiler's defense against contract upgrades and
+    // pointer aliasing, and it cannot be disabled.
 
-// File @openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol@v4.3.3
+    // The values being non-zero value makes deployment a bit more expensive,
+    // but in exchange the refund on every call to nonReentrant will be lower in
+    // amount. Since refunds are capped to a percentage of the total
+    // transaction's gas, it is best to keep them low in cases like this one, to
+    // increase the likelihood of the full refund coming into effect.
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
 
-pragma solidity ^0.8.0;
+    uint256 private _status;
 
-
-/**
- * @title SafeERC20
- * @dev Wrappers around ERC20 operations that throw on failure (when the token
- * contract returns false). Tokens that return no value (and instead revert or
- * throw on failure) are also supported, non-reverting calls are assumed to be
- * successful.
- * To use this library you can add a `using SafeERC20 for IERC20;` statement to your contract,
- * which allows you to call the safe operations as `token.safeTransfer(...)`, etc.
- */
-library SafeERC20 {
-    using Address for address;
-
-    function safeTransfer(
-        IERC20 token,
-        address to,
-        uint256 value
-    ) internal {
-        _callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
-    }
-
-    function safeTransferFrom(
-        IERC20 token,
-        address from,
-        address to,
-        uint256 value
-    ) internal {
-        _callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
+    constructor () {
+        _status = _NOT_ENTERED;
     }
 
     /**
-     * @dev Deprecated. This function has issues similar to the ones found in
-     * {IERC20-approve}, and its usage is discouraged.
-     *
-     * Whenever possible, use {safeIncreaseAllowance} and
-     * {safeDecreaseAllowance} instead.
+     * @dev Prevents a contract from calling itself, directly or indirectly.
+     * Calling a `nonReentrant` function from another `nonReentrant`
+     * function is not supported. It is possible to prevent this from happening
+     * by making the `nonReentrant` function external, and make it call a
+     * `private` function that does the actual work.
      */
-    function safeApprove(
-        IERC20 token,
-        address spender,
-        uint256 value
-    ) internal {
-        // safeApprove should only be called when setting an initial allowance,
-        // or when resetting it to zero. To increase and decrease it, use
-        // 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
-        require(
-            (value == 0) || (token.allowance(address(this), spender) == 0),
-            "SafeERC20: approve from non-zero to non-zero allowance"
-        );
-        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
-    }
+    modifier nonReentrant() {
+        // On the first call to nonReentrant, _notEntered will be true
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
 
-    function safeIncreaseAllowance(
-        IERC20 token,
-        address spender,
-        uint256 value
-    ) internal {
-        uint256 newAllowance = token.allowance(address(this), spender) + value;
-        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
-    }
+        // Any calls to nonReentrant after this point will fail
+        _status = _ENTERED;
 
-    function safeDecreaseAllowance(
-        IERC20 token,
-        address spender,
-        uint256 value
-    ) internal {
-        unchecked {
-            uint256 oldAllowance = token.allowance(address(this), spender);
-            require(oldAllowance >= value, "SafeERC20: decreased allowance below zero");
-            uint256 newAllowance = oldAllowance - value;
-            _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
-        }
-    }
+        _;
 
-    /**
-     * @dev Imitates a Solidity high-level call (i.e. a regular function call to a contract), relaxing the requirement
-     * on the return value: the return value is optional (but if data is returned, it must not be false).
-     * @param token The token targeted by the call.
-     * @param data The call data (encoded using abi.encode or one of its variants).
-     */
-    function _callOptionalReturn(IERC20 token, bytes memory data) private {
-        // We need to perform a low level call here, to bypass Solidity's return data size checking mechanism, since
-        // we're implementing it ourselves. We use {Address.functionCall} to perform this call, which verifies that
-        // the target address contains contract code and also asserts for success in the low-level call.
-
-        bytes memory returndata = address(token).functionCall(data, "SafeERC20: low-level call failed");
-        if (returndata.length > 0) {
-            // Return data is optional
-            require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
-        }
+        // By storing the original value once again, a refund is triggered (see
+        // https://eips.ethereum.org/EIPS/eip-2200)
+        _status = _NOT_ENTERED;
     }
 }
 
+interface IERC777 {
 
-// File contracts/Greeter.sol
+    function name() external view returns (string memory);
 
-pragma solidity ^0.8.0;
+    function symbol() external view returns (string memory);
 
-// import "hardhat/console.sol";
+    function granularity() external view returns (uint256);
 
-contract TestStakeOne is AccessControl, ReentrancyGuard {
-    using SafeERC20 for IERC20;
+    function totalSupply() external view returns (uint256);
 
-    // bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
-    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
+    function balanceOf(address owner) external view returns (uint256);
 
-    event Stake(address indexed wallet, uint256 amount, uint256 date);
-    event Withdraw(address indexed wallet, uint256 amount, uint256 date);
-    event Claimed(address indexed wallet, address indexed rewardToken, uint256 amount);
+    function send(
+        address recipient,
+        uint256 amount,
+        bytes calldata data
+    ) external;
 
-    event RewardTokenChanged(address indexed oldRewardToken, uint256 returnedAmount, address indexed newRewardToken);
-    event LockTimePeriodChanged(uint48 lockTimePeriod);
-    event stakeCapChanged(uint48 stakeCap);
-    event StakeRewardFactorChanged(uint256 stakeRewardFactor);
-    event StakeRewardEndTimeChanged(uint48 stakeRewardEndTime);
-    event RewardsBurned(address indexed staker, uint256 amount);
-    event ERC20TokensRemoved(address indexed tokenAddress, address indexed receiver, uint256 amount);
+    function burn(uint256 amount, bytes calldata data) external;
 
-    uint48 public constant MAX_TIME = type(uint48).max; // = 2^48 - 1
+    function isOperatorFor(address operator, address tokenHolder) external view returns (bool);
+
+    function authorizeOperator(address operator) external;
+
+    function revokeOperator(address operator) external;
+
+    function defaultOperators() external view returns (address[] memory);
+
+    function operatorSend(
+        address sender,
+        address recipient,
+        uint256 amount,
+        bytes calldata data,
+        bytes calldata operatorData
+    ) external;
+
+    function operatorBurn(
+        address account,
+        uint256 amount,
+        bytes calldata data,
+        bytes calldata operatorData
+    ) external;
+
+    event Sent(
+        address indexed operator,
+        address indexed from,
+        address indexed to,
+        uint256 amount,
+        bytes data,
+        bytes operatorData
+    );
+
+    event Minted(address indexed operator, address indexed to, uint256 amount, bytes data, bytes operatorData);
+
+    event Burned(address indexed operator, address indexed from, uint256 amount, bytes data, bytes operatorData);
+
+    event AuthorizedOperator(address indexed operator, address indexed tokenHolder);
+
+    event RevokedOperator(address indexed operator, address indexed tokenHolder);
+}
+
+interface IERC777Recipient {
+    /**
+     * @dev Called by an {IERC777} token contract whenever tokens are being
+     * moved or created into a registered account (`to`). The type of operation
+     * is conveyed by `from` being the zero address or not.
+     *
+     * This call occurs _after_ the token contract's state is updated, so
+     * {IERC777-balanceOf}, etc., can be used to query the post-operation state.
+     *
+     * This function may revert to prevent the operation from being executed.
+     */
+    function tokensReceived(
+        address operator,
+        address from,
+        address to,
+        uint256 amount,
+        bytes calldata userData,
+        bytes calldata operatorData
+    ) external;
+}
+
+interface IERC1820Registry {
+    /**
+     * @dev Sets `newManager` as the manager for `account`. A manager of an
+     * account is able to set interface implementers for it.
+     *
+     * By default, each account is its own manager. Passing a value of `0x0` in
+     * `newManager` will reset the manager to this initial state.
+     *
+     * Emits a {ManagerChanged} event.
+     *
+     * Requirements:
+     *
+     * - the caller must be the current manager for `account`.
+     */
+    function setManager(address account, address newManager) external;
+
+    /**
+     * @dev Returns the manager for `account`.
+     *
+     * See {setManager}.
+     */
+    function getManager(address account) external view returns (address);
+
+    /**
+     * @dev Sets the `implementer` contract as ``account``'s implementer for
+     * `interfaceHash`.
+     *
+     * `account` being the zero address is an alias for the caller's address.
+     * The zero address can also be used in `implementer` to remove an old one.
+     *
+     * See {interfaceHash} to learn how these are created.
+     *
+     * Emits an {InterfaceImplementerSet} event.
+     *
+     * Requirements:
+     *
+     * - the caller must be the current manager for `account`.
+     * - `interfaceHash` must not be an {IERC165} interface id (i.e. it must not
+     * end in 28 zeroes).
+     * - `implementer` must implement {IERC1820Implementer} and return true when
+     * queried for support, unless `implementer` is the caller. See
+     * {IERC1820Implementer-canImplementInterfaceForAddress}.
+     */
+    function setInterfaceImplementer(
+        address account,
+        bytes32 _interfaceHash,
+        address implementer
+    ) external;
+
+    /**
+     * @dev Returns the implementer of `interfaceHash` for `account`. If no such
+     * implementer is registered, returns the zero address.
+     *
+     * If `interfaceHash` is an {IERC165} interface id (i.e. it ends with 28
+     * zeroes), `account` will be queried for support of it.
+     *
+     * `account` being the zero address is an alias for the caller's address.
+     */
+    function getInterfaceImplementer(address account, bytes32 _interfaceHash) external view returns (address);
+
+    /**
+     * @dev Returns the interface hash for an `interfaceName`, as defined in the
+     * corresponding
+     * https://eips.ethereum.org/EIPS/eip-1820#interface-name[section of the EIP].
+     */
+    function interfaceHash(string calldata interfaceName) external pure returns (bytes32);
+
+    /**
+     * @notice Updates the cache with whether the contract implements an ERC165 interface or not.
+     * @param account Address of the contract for which to update the cache.
+     * @param interfaceId ERC165 interface for which to update the cache.
+     */
+    function updateERC165Cache(address account, bytes4 interfaceId) external;
+
+    /**
+     * @notice Checks whether a contract implements an ERC165 interface or not.
+     * If the result is not cached a direct lookup on the contract address is performed.
+     * If the result is not cached or the cached value is out-of-date, the cache MUST be updated manually by calling
+     * {updateERC165Cache} with the contract address.
+     * @param account Address of the contract to check.
+     * @param interfaceId ERC165 interface to check.
+     * @return True if `account` implements `interfaceId`, false otherwise.
+     */
+    function implementsERC165Interface(address account, bytes4 interfaceId) external view returns (bool);
+
+    /**
+     * @notice Checks whether a contract implements an ERC165 interface or not without using nor updating the cache.
+     * @param account Address of the contract to check.
+     * @param interfaceId ERC165 interface to check.
+     * @return True if `account` implements `interfaceId`, false otherwise.
+     */
+    function implementsERC165InterfaceNoCache(address account, bytes4 interfaceId) external view returns (bool);
+
+    event InterfaceImplementerSet(address indexed account, bytes32 indexed interfaceHash, address indexed implementer);
+
+    event ManagerChanged(address indexed account, address indexed newManager);
+}
+
+contract BlocksAutoStake is IERC777Recipient, Ownable, ReentrancyGuard {
 
     struct User {
-        uint48 stakeTime;
-        uint48 unlockTime;
-        uint160 stakeAmount;
-        uint256 accumulatedRewards;
+        uint256 stakeTime;
+        uint256 claimTime;
+        uint256 allocatedBalance;
     }
 
-    mapping(address => User) public userMap;
+    mapping(address => User) public userAccount;
+    uint256 public totalClaimed;
+    uint256 public totalAllocated;
+    uint256 public stakeRewardFactor;
+    uint256 public stakeRewardEndTime; // time in seconds when the reward scheme will end
+    address public token = 0x8a6D4C8735371EBAF8874fBd518b56Edd66024eB;
 
-    uint256 public tokenTotalStaked; // sum of all staked tokens
-    uint256 public stakeCap; //Maximum total of tokens allowed for staking
-    address public immutable stakingToken; // address of token which can be staked into this contract
-    address public rewardToken; // address of reward token
+    IERC1820Registry private _erc1820 = IERC1820Registry(0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24);
+    bytes32 constant private TOKENS_RECIPIENT_INTERFACE_HASH = keccak256("ERC777TokensRecipient");
 
-    /**
-     * Using block.timestamp instead of block.number for reward calculation
-     * 1) Easier to handle for users
-     * 2) Should result in same rewards across different chain with different block times
-     * 3) "The current block timestamp must be strictly larger than the timestamp of the last block, ...
-     *     but the only guarantee is that it will be somewhere between the timestamps ...
-     *     of two consecutive blocks in the canonical chain."
-     *    https://docs.soliditylang.org/en/v0.7.6/cheatsheet.html?highlight=block.timestamp#global-variables
-     */
+    event Allocated(uint256 totalAllocated);
+    event ClaimedChanged(uint256 totalUnclaimed);
+    event ERC20TokensRemoved(address indexed tokenAddress, address indexed receiver, uint256 amount);
+    event StakeRewardFactorChanged(uint256 stakeRewardFactor);
+    event StakeRewardEndTimeChanged(uint256 stakeRewardEndTime);
+    event ERC777TokensBurned(address tokenAddress, uint256 amount);
+    event ERC777Send(address operator, address from, address to, uint256 amount, bytes userData, bytes operatorData);
+    event RewardsLoaded(address from, uint256 amount);
 
-    uint48 public lockTimePeriod; // time in seconds a user has to wait after calling unlock until staked token can be withdrawn
-    uint48 public stakeRewardEndTime; // unix time in seconds when the reward scheme will end
-    uint256 public stakeRewardFactor; // time in seconds * amount of staked token to receive 1 reward token
-
-    constructor(address _stakingToken, uint48 _lockTimePeriod, uint256 _stakeCap) {
-        require(_stakingToken != address(0), "stakingToken.address == 0");
-        require(_lockTimePeriod < 366 days, "lockTimePeriod >= 366 days");
-        require(_stakeCap > 0, "Staking cap must be greater than 0");
-        stakingToken = _stakingToken;
-        lockTimePeriod = _lockTimePeriod;
-        stakeCap = _stakeCap;
-        // set some defaults
-        stakeRewardFactor = 1000 * 1 days; // default : a user has to stake 1000 token for 1 day to receive 1 reward token
-        stakeRewardEndTime = uint48(block.timestamp + 366 days); // default : reward scheme ends in 1 year
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    constructor() {
+        _erc1820.setInterfaceImplementer(address(this), TOKENS_RECIPIENT_INTERFACE_HASH, address(this));
+        stakeRewardEndTime = block.timestamp + 1 days;
+        stakeRewardFactor = 7300 * 1 days; // default : a user has to stake 7300 tokens for 1 day to receive 1 reward token
     }
 
-    /**
-     * based on OpenZeppelin SafeCast v4.3
-     * https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.3/contracts/utils/math/SafeCast.sol
-     */
+    function tokensReceived(
+        address operator,
+        address from,
+        address to,
+        uint256 amount,
+        bytes calldata userData,
+        bytes calldata operatorData
+    ) external override {
+        emit ERC777Send(operator, from, to, amount, userData, operatorData);
+        if(from == owner()){
+            emit RewardsLoaded(from, amount);
+        } else if(block.timestamp >= stakeRewardEndTime) {
+            revert();
+        } else {
+            uint256 _totalReceived = userAccount[from].allocatedBalance;
+            userAccount[from].allocatedBalance = amount + _totalReceived;
 
-    function toUint48(uint256 value) internal pure returns (uint48) {
-        require(value <= type(uint48).max, "value doesn't fit in 48 bits");
-        return uint48(value);
-    }
-
-    function toUint160(uint256 value) internal pure returns (uint160) {
-        require(value <= type(uint160).max, "value doesn't fit in 160 bits");
-        return uint160(value);
-    }
-
-    /**
-     * External API functions
-     */
-
-    function stakeTime(address _staker) external view returns (uint48 dateTime) {
-        return userMap[_staker].stakeTime;
-    }
-
-    function stakeAmount(address _staker) external view returns (uint256 balance) {
-        return userMap[_staker].stakeAmount;
-    }
-
-    // redundant with stakeAmount() for compatibility
-    function balanceOf(address _staker) external view returns (uint256 balance) {
-        return userMap[_staker].stakeAmount;
-    }
-
-    function userAccumulatedRewards(address _staker) external view returns (uint256 rewards) {
-        return userMap[_staker].accumulatedRewards;
-    }
-
-    /**
-     * @dev return unix epoch time when staked tokens will be unlocked
-     * @dev return MAX_INT_UINT48 = 2**48-1 if user has no token staked
-     * @dev this always allows an easy check with : require(block.timestamp > getUnlockTime(account));
-     * @return unlockTime unix epoch time in seconds
-     */
-    function getUnlockTime(address _staker) public view returns (uint48 unlockTime) {
-        return userMap[_staker].stakeAmount > 0 ? userMap[_staker].unlockTime : MAX_TIME;
-    }
-
-    /**
-     * @return balance of reward tokens held by this contract
-     */
-    function getRewardTokenBalance() public view returns (uint256 balance) {
-        if (rewardToken == address(0)) return 0;
-        balance = IERC20(rewardToken).balanceOf(address(this));
-        if (stakingToken == rewardToken) {
-            balance -= tokenTotalStaked;
+            if(userAccount[from].stakeTime == 0){
+                userAccount[from].stakeTime = block.timestamp;
+            }
+            if(userAccount[from].claimTime == 0){
+                userAccount[from].claimTime = block.timestamp;
+            }
+             _increaseAllocation(amount);
         }
     }
 
-    // onlyOwner / DEFAULT_ADMIN_ROLE functions --------------------------------------------------
+    function manuallyAllocateRewards(address[] calldata _beneficiaries, uint256[] calldata _earnings) external onlyOwner {
+        require(_beneficiaries.length == _earnings.length, "Invalid array length");
+        require(block.timestamp < stakeRewardEndTime, "Staking rewards have expired.");
 
-    /**
-     * @notice setting rewardToken to address(0) disables claim/mint
-     * @notice if there was a reward token set before, return remaining tokens to msg.sender/admin
-     * @param newRewardToken address
-     */
-    function setRewardToken(address newRewardToken) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
-        address oldRewardToken = rewardToken;
-        uint256 rewardBalance = getRewardTokenBalance(); // balance of oldRewardToken
-        if (rewardBalance > 0) {
-            IERC20(oldRewardToken).safeTransfer(msg.sender, rewardBalance);
+        uint256 _sum = 0;
+        for (uint256 i = 0; i < _beneficiaries.length; i++) {
+            address _beneficiary = _beneficiaries[i];
+            uint256 _totalEarned = _earnings[i];
+            uint256 _totalReceived = userAccount[_beneficiary].allocatedBalance;
+
+            userAccount[_beneficiary].allocatedBalance = _totalEarned + _totalReceived;
+
+            if(userAccount[_beneficiary].stakeTime == 0){
+                userAccount[_beneficiary].stakeTime = block.timestamp;
+            }
+            if(userAccount[_beneficiary].claimTime == 0){
+                userAccount[_beneficiary].claimTime = block.timestamp;
+            }
+            _sum += _totalEarned;
+            _increaseAllocation(_sum);
         }
-        rewardToken = newRewardToken;
-        emit RewardTokenChanged(oldRewardToken, rewardBalance, newRewardToken);
     }
 
-    /**
-     * @notice set time a user has to wait after calling unlock until staked token can be withdrawn
-     * @param _lockTimePeriod time in seconds
-     */
-    function setLockTimePeriod(uint48 _lockTimePeriod) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        lockTimePeriod = _lockTimePeriod;
-        emit LockTimePeriodChanged(_lockTimePeriod);
-    }
-    
-    function setStakeCap(uint48 _stakeCap) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        stakeCap = _stakeCap;
-        emit stakeCapChanged(_stakeCap);
+    function _fetchUserReward(address _account) internal view returns (uint256 rewards){
+        // If rewards have ended, pay from reward end time.
+        if(block.timestamp > stakeRewardEndTime) {
+           uint256 _timeSinceClaim = stakeRewardEndTime - userAccount[_account].claimTime;
+           uint256 _userStakeFactor = _timeSinceClaim * userAccount[_account].allocatedBalance;
+           uint256 _stakeReward = _userStakeFactor / stakeRewardFactor;
+           return _stakeReward;
+        } else {
+           uint256 _timeSinceClaim = block.timestamp - userAccount[_account].claimTime;
+           uint256 _userStakeFactor = _timeSinceClaim * userAccount[_account].allocatedBalance;
+           uint256 _stakeReward = _userStakeFactor / stakeRewardFactor;
+           return _stakeReward;
+        }
     }
 
-    /**
-     * @notice see calculateUserClaimableReward() docs
-     * @dev requires that reward token has the same decimals as stake token
-     * @param _stakeRewardFactor time in seconds * amount of staked token to receive 1 reward token
-     */
-    function setStakeRewardFactor(uint256 _stakeRewardFactor) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function getAccumulatedRewards(address _userAddress) external view returns (uint256 rewards){
+        return _fetchUserReward(_userAddress);
+    }
+
+    function _contractBalance() internal view returns (uint256 balance) {
+        uint256 blocksBalance = IERC20(token).balanceOf(address(this));
+        return blocksBalance;
+    }
+
+    function getContractBalance() external view returns (uint256 balance) {
+        return _contractBalance();
+    }
+
+    function claimRewards() external nonReentrant {
+        require(userAccount[msg.sender].allocatedBalance > 0, "Balance must be > 0");
+
+        uint256 _claimAmount = _fetchUserReward(msg.sender);
+        require(_claimAmount <= _contractBalance(), "Contract balance too low.");
+
+        // Update user claim time
+        if(block.timestamp >= stakeRewardEndTime){
+            userAccount[msg.sender].claimTime = stakeRewardEndTime;
+        } else {
+            userAccount[msg.sender].claimTime = block.timestamp;
+        }
+
+        _increaseClaimed(_claimAmount);
+
+        IERC20(token).transfer(msg.sender, _claimAmount);
+    }
+
+    function withdrawAll() external nonReentrant {
+        require(userAccount[msg.sender].allocatedBalance > 0, "Balance must be > 0");
+
+        uint256 _withdrawalAmount = userAccount[msg.sender].allocatedBalance;
+        require(_withdrawalAmount <= _contractBalance(), "Contract balance too low.");
+
+        // Update user
+        userAccount[msg.sender].stakeTime = 0;
+        userAccount[msg.sender].claimTime = 0;
+        userAccount[msg.sender].allocatedBalance = 0;
+
+        _reduceAllocation(_withdrawalAmount);
+
+        IERC20(token).transfer(msg.sender, _withdrawalAmount);
+    }
+
+    function withdrawAmount(uint256 _amount) external nonReentrant {
+        require(userAccount[msg.sender].allocatedBalance > 0, "Balance must be > 0");
+        require(userAccount[msg.sender].allocatedBalance >= _amount, "Balance must be > amount");
+        require(_amount <= _contractBalance(), "Contract balance too low.");
+
+        uint256 _balance = userAccount[msg.sender].allocatedBalance;
+
+        // Update user allocation
+        _balance -= _amount;
+        userAccount[msg.sender].allocatedBalance = _balance;
+
+        _reduceAllocation(_amount);
+
+        IERC20(token).transfer(msg.sender, _amount);
+    }
+
+    function setStakeRewardFactor(uint256 _stakeRewardFactor) external onlyOwner{
         stakeRewardFactor = _stakeRewardFactor;
         emit StakeRewardFactorChanged(_stakeRewardFactor);
     }
 
-    /**
-     * @notice set block time when stake reward scheme will end
-     * @param _stakeRewardEndTime unix time in seconds
-     */
-    function setStakeRewardEndTime(uint48 _stakeRewardEndTime) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(stakeRewardEndTime > block.timestamp, "time has to be in the future");
+    function setStakeRewardEndTime(uint256 _stakeRewardEndTime) external onlyOwner{
+        require(_stakeRewardEndTime > block.timestamp, "End time must be > current time.");
         stakeRewardEndTime = _stakeRewardEndTime;
         emit StakeRewardEndTimeChanged(_stakeRewardEndTime);
     }
 
-    /** msg.sender external view convenience functions *********************************/
-
-    function stakeAmount_msgSender() public view returns (uint256) {
-        return userMap[msg.sender].stakeAmount;
-    }
-
-    function stakeTime_msgSender() external view returns (uint48) {
-        return userMap[msg.sender].stakeTime;
-    }
-
-    function getUnlockTime_msgSender() external view returns (uint48 unlockTime) {
-        return getUnlockTime(msg.sender);
-    }
-
-    function userClaimableRewards_msgSender() external view returns (uint256) {
-        return userClaimableRewards(msg.sender);
-    }
-
-    function userAccumulatedRewards_msgSender() external view returns (uint256) {
-        return userMap[msg.sender].accumulatedRewards;
-    }
-
-    function userTotalRewards_msgSender() external view returns (uint256) {
-        return userTotalRewards(msg.sender);
-    }
-
-    function getEarnedRewardTokens_msgSender() external view returns (uint256) {
-        return getEarnedRewardTokens(msg.sender);
-    }
-
-    /** public external view functions (also used internally) **************************/
-
-    /**
-     * calculates unclaimed rewards
-     * unclaimed rewards = expired time since last stake/unstake transaction * current staked amount
-     *
-     * We have to cover 6 cases here :
-     * 1) block time < stake time < end time   : should never happen => error
-     * 2) block time < end time   < stake time : should never happen => error
-     * 3) end time   < block time < stake time : should never happen => error
-     * 4) end time   < stake time < block time : staked after reward period is over => no rewards
-     * 5) stake time < block time < end time   : end time in the future
-     * 6) stake time < end time   < block time : end time in the past & staked before
-     * @param _staker address
-     * @return claimableRewards = timePeriod * stakeAmount
-     */
-    function userClaimableRewards(address _staker) public view returns (uint256) {
-        User storage user = userMap[_staker];
-        // case 1) 2) 3)
-        // stake time in the future - should never happen - actually an (internal ?) error
-        if (block.timestamp <= user.stakeTime) return 0;
-
-        // case 4)
-        // staked after reward period is over => no rewards
-        // end time < stake time < block time
-        if (stakeRewardEndTime <= user.stakeTime) return 0;
-
-        uint256 timePeriod;
-
-        // case 5
-        // we have not reached the end of the reward period
-        // stake time < block time < end time
-        if (block.timestamp <= stakeRewardEndTime) {
-            timePeriod = block.timestamp - user.stakeTime; // covered by case 1) 2) 3) 'if'
-        } else {
-            // case 6
-            // user staked before end of reward period , but that is in the past now
-            // stake time < end time < block time
-            timePeriod = stakeRewardEndTime - user.stakeTime; // covered case 4)
-        }
-
-        return timePeriod * user.stakeAmount;
-    }
-
-    function userTotalRewards(address _staker) public view returns (uint256) {
-        return userClaimableRewards(_staker) + userMap[_staker].accumulatedRewards;
-    }
-
-    function getEarnedRewardTokens(address _staker) public view returns (uint256 claimableRewardTokens) {
-        if (address(rewardToken) == address(0) || stakeRewardFactor == 0) {
-            return 0;
-        } else {
-            return userTotalRewards(_staker) / stakeRewardFactor; // safe
-        }
-    }
-
-    /**
-     *  @dev whenver the staked balance changes do ...
-     *
-     *  @dev calculate userClaimableRewards = previous staked amount * (current time - last stake time)
-     *  @dev add userClaimableRewards to userAccumulatedRewards
-     *  @dev reset userClaimableRewards to 0 by setting stakeTime to current time
-     *  @dev not used as doing it inline, local, within a function consumes less gas
-     *
-     *  @return user reference pointer for further processing
-     */
-    function _updateRewards(address _staker) internal returns (User storage user) {
-        // calculate reward credits using previous staking amount and previous time period
-        // add new reward credits to already accumulated reward credits
-        user = userMap[_staker];
-        user.accumulatedRewards += userClaimableRewards(_staker);
-
-        // update stake Time to current time (start new reward period)
-        // will also reset userClaimableRewards()
-        user.stakeTime = toUint48(block.timestamp);
-    }
-
-    /**
-     * add stake token to staking pool
-     * @dev requires the token to be approved for transfer
-     * @dev we assume that (our) stake token is not malicious, so no special checks
-     * @param _amount of token to be staked
-     */
-    function _stake(uint256 _amount) internal returns (uint256) {
-        require(_amount > 0, "stake amount must be > 0");
-        require(_amount + tokenTotalStaked <= stakeCap, "Amount exceeds staking cap for this contract.");
-
-        User storage user = _updateRewards(msg.sender); // update rewards and return reference to user
-
-        user.stakeAmount = toUint160(user.stakeAmount + _amount);
-        tokenTotalStaked += _amount;
-
-        user.unlockTime = toUint48(block.timestamp + lockTimePeriod);
-
-        // using SafeERC20 for IERC20 => will revert in case of error
-        IERC20(stakingToken).safeTransferFrom(msg.sender, address(this), _amount);
-
-        emit Stake(msg.sender, _amount, toUint48(block.timestamp)); // = user.stakeTime
-        return _amount;
-    }
-
-    /**
-     * withdraw staked token, ...
-     * do not withdraw rewards token (it might not be worth the gas)
-     * @return amount of tokens sent to user's account
-     */
-    function _withdraw(uint256 amount) internal returns (uint256) {
-        require(amount > 0, "amount to withdraw not > 0");
-        require(block.timestamp > getUnlockTime(msg.sender), "staked tokens are still locked");
-
-        User storage user = _updateRewards(msg.sender); // update rewards and return reference to user
-
-        require(amount <= user.stakeAmount, "withdraw amount > staked amount");
-        user.stakeAmount -= toUint160(amount);
-        tokenTotalStaked -= amount;
-
-        // using SafeERC20 for IERC20 => will revert in case of error
-        IERC20(stakingToken).safeTransfer(msg.sender, amount);
-
-        emit Withdraw(msg.sender, amount, toUint48(block.timestamp)); // = user.stakeTime
-        return amount;
-    }
-
-    /**
-     * claim reward tokens for accumulated reward credits
-     * ... but do not unstake staked token
-     */
-    function _claim() internal returns (uint256) {
-        require(rewardToken != address(0), "no reward token contract");
-        uint256 earnedRewardTokens = getEarnedRewardTokens(msg.sender);
-        require(earnedRewardTokens > 0, "no tokens to claim");
-
-        // like _updateRewards() , but reset all rewards to 0
-        User storage user = userMap[msg.sender];
-        user.accumulatedRewards = 0;
-        user.stakeTime = toUint48(block.timestamp); // will reset userClaimableRewards to 0
-        // user.stakeAmount = unchanged
-
-        require(earnedRewardTokens <= getRewardTokenBalance(), "not enough reward tokens"); // redundant but dedicated error message
-        IERC20(rewardToken).safeTransfer(msg.sender, earnedRewardTokens);
-
-        emit Claimed(msg.sender, rewardToken, earnedRewardTokens);
-        return earnedRewardTokens;
-    }
-
-    function stake(uint256 _amount) external nonReentrant returns (uint256) {
-        return _stake(_amount);
-    }
-
-    function claim() external nonReentrant returns (uint256) {
-        return _claim();
-    }
-
-    function withdraw(uint256 amount) external nonReentrant returns (uint256) {
-        return _withdraw(amount);
-    }
-
-    function withdrawAll() external nonReentrant returns (uint256) {
-        return _withdraw(stakeAmount_msgSender());
-    }
-
-    /**
-     * Do not accept accidently sent ETH :
-     * If neither a receive Ether nor a payable fallback function is present,
-     * the contract cannot receive Ether through regular transactions and throws an exception.
-     * https://docs.soliditylang.org/en/v0.8.7/contracts.html#receive-ether-function
-     */
-
-    /**
-     * @notice withdraw accidently sent ERC20 tokens
-     * @param _tokenAddress address of token to withdraw
-     */
-    function removeOtherERC20Tokens(address _tokenAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function removeTokens(address _tokenAddress) external onlyOwner {
         uint256 balance = IERC20(_tokenAddress).balanceOf(address(this));
-        IERC20(_tokenAddress).safeTransfer(msg.sender, balance);
+        IERC20(_tokenAddress).transfer(msg.sender, balance);
         emit ERC20TokensRemoved(_tokenAddress, msg.sender, balance);
+    }
+
+    function _reduceAllocation(uint256 _amount) internal {
+        totalAllocated -= _amount;
+        emit Allocated(totalAllocated);
+    }
+
+    function _increaseAllocation(uint256 _amount) internal {
+        totalAllocated += _amount;
+        emit Allocated(totalAllocated);
+    }
+
+    function _increaseClaimed(uint256 delta) internal {
+        totalClaimed = totalClaimed + delta;
+        emit ClaimedChanged(totalClaimed);
     }
 }
